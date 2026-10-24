@@ -1,0 +1,20 @@
+{
+  ".gitignore": "3f4fb293bbaa5338392f10c8ef3f1c46c8e61e88cb995fe36310da9511d0d309",
+  ".openai/hosting.json": "5b0cf18bf76a0548d37a2da9863c41d4119c2213b140f9707ae47c7837d1a35a",
+  "README.md": "0c3ba0d3d45f8f765ae562c9e8d6c366fab8f36ff33d88ea775e3d6659b28a0b",
+  "SOURCE_VERSION.json": "d7616b8c3a7568fe254dc484d74a2b708eb3395abb97565c89745afe206f50a3",
+  "dist/app.js": "2470100dc5275cf9bccb7b6c0c1b2994c53d1cbb1869779a4e27fe56f379850f",
+  "dist/data.js": "c6098e9575ff22c3c2bede4ec48aa52b55d2336a4e7a74e34a4a17b78f47c825",
+  "dist/index.html": "2d9988724b95bd77b8d1305b4d3cff18399d08ca68e1117a1295f7077b92cb0d",
+  "dist/intake.css": "5c44295ee7cb50dd687d17d5ce03f82ebbe88fe5f384bfce7afa8c591a349cab",
+  "dist/intake.js": "4322f7b1d644e827adcabcd2d73365edc3cb4fbec31d90cd618dfc96121ec9b4",
+  "dist/samples/HS01.png": "124ca1345fba4897a5c9da1e9c270d536993d342450180a1970ed036cccd8efe",
+  "dist/samples/HS02.pdf": "3967faa3852b6c199c3bb33940c742aefad8717af5202de3958027d72c0c70f8",
+  "dist/samples/HS03.jpg": "8cff496e3a6186d00ca639a61233f3878994314bccadc4a3e1f095e00fa68122",
+  "dist/samples/HS04.png": "6c900a00ad4879a29f2fc3c69c4a95398045a9444f67054ddf2d2d1603ae1cac",
+  "dist/samples/HS05.pdf": "3d6e29e6cfa4bb4554f949aceae49a3c2d349b162e5bac3fd5f26732e6b0bb64",
+  "dist/samples/HS06.jpg": "4f85f0db5c76a26e6a5ee74a39ec626ba800242deeb9ef177d1bdb6e5d139cdf",
+  "dist/style.css": "4c4847af6cc9b536809ca8c0c1e5ded436e5f33330b0741f1efdf3458c0135cf",
+  "docs/AI_INTEGRATION.md": "6db6c959d2f1352aca713aed384f3f00d27100837ed3b77bc76f4762aed2c993",
+  "run_local.py": "5d50647191276eefa99f0ed8fdac85eb6a08457e6c188bea86b000eb50157126"
+}

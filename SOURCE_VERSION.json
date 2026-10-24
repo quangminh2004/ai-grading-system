@@ -1,0 +1,8 @@
+{
+  "export_date": "2026-10-22",
+  "site_version": 2,
+  "source_commit": "a4bb67ca66916bfef439eacd525eb00b54dbb106",
+  "site_url": "https://thanh-lan-cham-chua-ai.politejay4096.chatgpt.site",
+  "source_files": "dist/ and .openai/hosting.json match the deployed source commit; README, docs and run_local.py are handoff additions.",
+  "ai_status": "Sample results are simulated. OCR and automatic grading of new files are not connected."
+}
