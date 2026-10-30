@@ -8,7 +8,9 @@ export default function ProfilesPage({ classroom, students }) {
     <div>
       <div className="pagehead">
         <div>
-          <div className="eyebrow">TRỢ LÝ CHẤM CHỮA BÀI · THANH LÂN</div>
+          <div className="eyebrow">
+            TRỢ LÝ CHẤM CHỮA BÀI · {classroom?.school?.toUpperCase() || 'HỆ THỐNG ĐA TRƯỜNG'}
+          </div>
           <h1>Hồ sơ học tập theo từng học sinh</h1>
           <p className="sub">
             Tổng hợp điểm mạnh, dẫn chứng thực tế và định hướng bồi dưỡng của học sinh {classroom?.label}.

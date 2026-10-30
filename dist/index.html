@@ -1,125 +1,16 @@
 <!doctype html>
 <html lang="vi">
-
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Demo trợ lý AI hỗ trợ giáo viên chấm chữa bài theo tiêu chí. Giáo viên quyết định kết quả cuối cùng.">
-  <title>Thanh Lân · Chấm &amp; Chữa</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="intake.css">
-</head>
-
-<body>
-
-  <!-- ===== SIDEBAR / NAVIGATION ===== -->
-  <aside class="sidebar">
-
-    <!-- Logo / Brand -->
-    <a class="brand" href="#">
-      <span class="brand-icon">✳</span>
-      <span>
-        Chấm <i>&</i> Chữa
-        <small>TRƯỜNG TIỂU HỌC THANH LÂN</small>
-      </span>
-    </a>
-
-    <!-- Workspace info -->
-    <div class="workspace">
-      <span class="avatar">TL</span>
-      <div>
-        Không gian giáo viên
-        <small>Bản thử nghiệm · Tiểu học</small>
-      </div>
-    </div>
-
-    <!-- Navigation menu -->
-    <p class="navlabel">KHÔNG GIAN LÀM VIỆC</p>
-    <nav>
-      <button data-page="overview">
-        <span>▦</span>Tổng quan
-      </button>
-      <button data-page="intake" class="active">
-        <span>⇧</span>Nhận bài &amp; chấm AI
-      </button>
-      <button data-page="grading">
-        <span>▤</span>Chấm, chữa bài <b id="navcount">6</b>
-      </button>
-      <button data-page="roster">
-        <span>☷</span>Danh sách lớp
-      </button>
-      <button data-page="profiles">
-        <span>◉</span>Hồ sơ học tập
-      </button>
-      <button data-page="rubric">
-        <span>☷</span>Tiêu chí đánh giá
-      </button>
-    </nav>
-
-    <!-- Sidebar bottom note -->
-    <div class="side-bottom">
-      <div class="human-icon">✓</div>
-      <strong>AI hỗ trợ.<br>Thầy cô quyết định.</strong>
-      <p>Mỗi gợi ý đều cần được giáo viên xem xét và xác nhận.</p>
-      <button class="textbtn" id="about">Tìm hiểu bản demo ↗</button>
-    </div>
-
-    <!-- Logged-in teacher -->
-    <div class="teacher">
-      <span class="avatar peach">GV</span>
-      <div>
-        Giáo viên Thanh Lân
-        <small>Không gian demo riêng</small>
-      </div>
-    </div>
-
-  </aside>
-
-  <!-- ===== MAIN APP AREA ===== -->
-  <div class="app">
-
-    <!-- Top header bar -->
-    <header>
-      <div>
-        <span class="breadcrumb">Không gian giáo viên</span>
-        <span class="slash">/</span>
-        <span id="crumb">Chấm, chữa bài</span>
-      </div>
-      <div class="head-right">
-        <label class="class-picker">
-          Lớp
-          <select id="classPicker" aria-label="Chọn lớp"></select>
-        </label>
-        <span class="demo-pill"><i></i> Demo tương tác</span>
-        <button class="iconbtn" id="help" aria-label="Hướng dẫn sử dụng">?</button>
-        <span class="avatar small">GV</span>
-      </div>
-    </header>
-
-    <!-- Dynamic page content -->
-    <main id="main"></main>
-
-    <!-- Footer -->
-    <footer>
-      <span>Thanh Lân · Chấm &amp; Chữa</span>
-      <span>Dữ liệu minh họa · Kết quả AI mô phỏng · Lưu trên trình duyệt này</span>
-    </footer>
-
-  </div>
-
-  <!-- ===== MODAL DIALOG ===== -->
-  <dialog id="modal">
-    <div id="modalContent"></div>
-  </dialog>
-
-  <!-- ===== TOAST NOTIFICATION ===== -->
-  <div id="toast" role="status"></div>
-
-  <!-- ===== SCRIPTS ===== -->
-  <script src="data.js"></script>
-  <script src="app.js"></script>
-  <script src="intake.js"></script>
-
-</body>
-
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hệ Thống Trợ Lý Chấm &amp; Chữa Bài AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <script type="module" crossorigin src="/assets/index-BbF5Axwp.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DWmtsCWW.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>

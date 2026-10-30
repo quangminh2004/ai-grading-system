@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { connectDB } from '../config/db.js';
+import { User } from '../models/User.js';
 import { Class } from '../models/Class.js';
 import { Student } from '../models/Student.js';
 import { Assignment } from '../models/Assignment.js';
@@ -141,13 +142,74 @@ const seeds = [
 export async function runSeed() {
   await connectDB();
 
-  console.log('🌱 Đang dọn dẹp và nạp dữ liệu mẫu ban đầu...');
+  console.log('🌱 Đang dọn dẹp và nạp dữ liệu mẫu ban đầu vào MongoDB Atlas...');
   await Class.deleteMany({});
   await Student.deleteMany({});
   await Assignment.deleteMany({});
   await Submission.deleteMany({});
 
-  // 1. Tạo Assignment mặc định
+  // 1. Tạo Tài khoản Mẫu (Admin & Giáo viên các trường)
+  console.log('👤 Đang khởi tạo tài khoản Admin và Giáo viên...');
+  // Chỉ xóa và tạo lại nếu chưa có hoặc cập nhật
+  await User.deleteMany({ username: { $in: ['admin', 'cothanhlan', 'codichvong', 'cobaotram'] } });
+
+  const adminUser = new User({
+    username: 'admin',
+    password: 'admin@123',
+    fullName: 'Quản trị viên Hệ thống',
+    role: 'admin',
+    school: 'Phòng Giáo dục & Đào tạo',
+    email: 'admin@giaoduc.edu.vn',
+    phone: '0901234567',
+    active: true,
+  });
+  await adminUser.save();
+
+  const teacherThanhLan = new User({
+    username: 'cothanhlan',
+    password: '123456',
+    fullName: 'Cô Trần Thị Mai',
+    role: 'teacher',
+    school: 'Trường Tiểu học Thanh Lân',
+    email: 'maitt@thanhlan.edu.vn',
+    phone: '0912345678',
+    active: true,
+    assignedClasses: ['4A', '4B'],
+    createdBy: 'admin',
+  });
+  await teacherThanhLan.save();
+
+  const teacherDichVong = new User({
+    username: 'codichvong',
+    password: '123456',
+    fullName: 'Cô Nguyễn Minh Hằng',
+    role: 'teacher',
+    school: 'Trường Tiểu học Dịch Vọng A',
+    email: 'hangnm@dichvong.edu.vn',
+    phone: '0987654321',
+    active: true,
+    assignedClasses: ['4C'],
+    createdBy: 'admin',
+  });
+  await teacherDichVong.save();
+
+  const teacherBaoTram = new User({
+    username: 'cobaotram',
+    password: '123456',
+    fullName: 'Cô Lê Bảo Trâm',
+    role: 'teacher',
+    school: 'Trường Tiểu học Chu Văn An',
+    email: 'tramlb@chuvanan.edu.vn',
+    phone: '0934567890',
+    active: true,
+    assignedClasses: ['4D'],
+    createdBy: 'admin',
+  });
+  await teacherBaoTram.save();
+
+  console.log('✅ Đã tạo 1 Admin (admin) và 3 Giáo viên (cothanhlan, codichvong, cobaotram)');
+
+  // 2. Tạo Assignment mặc định
   const assignment = await Assignment.create({
     title: 'Viết đoạn văn ngắn miêu tả một cây bóng mát hoặc cây hoa/cây ăn quả',
     subject: 'Tiếng Việt 4',
@@ -155,23 +217,45 @@ export async function runSeed() {
   });
   console.log(`✅ Đã tạo Assignment: "${assignment.title}"`);
 
-  // 2. Tạo Lớp 4A và 4B
+  // 3. Tạo các Lớp học cho nhiều trường khác nhau
   const class4A = await Class.create({
     classId: '4A',
-    label: 'Lớp 4A',
+    label: 'Lớp 4A - Thanh Lân',
     grade: '4',
     academicYear: '2026-2027',
+    school: 'Trường Tiểu học Thanh Lân',
+    teacherUsername: 'cothanhlan',
   });
 
   const class4B = await Class.create({
     classId: '4B',
-    label: 'Lớp 4B',
+    label: 'Lớp 4B - Thanh Lân',
     grade: '4',
     academicYear: '2026-2027',
+    school: 'Trường Tiểu học Thanh Lân',
+    teacherUsername: 'cothanhlan',
   });
-  console.log('✅ Đã tạo 2 lớp mẫu: 4A, 4B');
 
-  // 3. Tạo học sinh và bài nộp cho 4A
+  const class4C = await Class.create({
+    classId: '4C',
+    label: 'Lớp 4C - Dịch Vọng A',
+    grade: '4',
+    academicYear: '2026-2027',
+    school: 'Trường Tiểu học Dịch Vọng A',
+    teacherUsername: 'codichvong',
+  });
+
+  const class4D = await Class.create({
+    classId: '4D',
+    label: 'Lớp 4D - Chu Văn An',
+    grade: '4',
+    academicYear: '2026-2027',
+    school: 'Trường Tiểu học Chu Văn An',
+    teacherUsername: 'cobaotram',
+  });
+  console.log('✅ Đã tạo các lớp mẫu thuộc nhiều trường: 4A, 4B, 4C, 4D');
+
+  // 4. Tạo học sinh và bài nộp cho 4A (Thanh Lân)
   for (let i = 0; i < seeds.length; i++) {
     const s = seeds[i];
     const name = sampleNames[i];
@@ -215,7 +299,7 @@ export async function runSeed() {
   }
   console.log('✅ Đã nạp 6 học sinh và bài mẫu lớp 4A');
 
-  // 4. Tạo học sinh cho 4B (chưa nộp bài)
+  // 5. Tạo học sinh cho 4B (Thanh Lân)
   const students4B = ['Bùi Minh Anh', 'Nguyễn Hải Đăng', 'Trần Tuệ Lâm', 'Lê Bảo Ngọc'];
   for (let i = 0; i < students4B.length; i++) {
     const studentId = `HS${String(i + 1).padStart(2, '0')}`;
@@ -241,7 +325,66 @@ export async function runSeed() {
   }
   console.log('✅ Đã nạp 4 học sinh lớp 4B');
 
-  console.log('🎉 NẠP DỮ LIỆU SEED VÀO MONGODB ATLAS THÀNH CÔNG RỰC RỠ!');
+  // 6. Tạo học sinh và bài nộp mẫu cho 4C (Dịch Vọng A)
+  const students4C = [
+    { id: 'HS01', name: 'Nguyễn Văn Nam' },
+    { id: 'HS02', name: 'Trần Quỳnh Chi' },
+    { id: 'HS03', name: 'Lê Hoàng Long' },
+  ];
+  for (const std of students4C) {
+    await Student.create({
+      studentId: std.id,
+      name: std.name,
+      classId: '4C',
+    });
+
+    await Submission.create({
+      studentId: std.id,
+      classId: '4C',
+      assignmentId: assignment._id,
+      state: 'suggested',
+      text: 'Vườn trường em có cây hoa sữa tỏa hương thơm ngát mỗi độ thu về. Tán cây cao vút, lá xanh mơn mởn che bóng mát cả khoảng sân.',
+      scores: [3.5, 2, 1.5, 2],
+      explain: ['Đúng đối tượng miêu tả', 'Mạch ý tự nhiên', 'Từ ngữ gợi cảm xúc tốt', 'Chính tả chuẩn xác'],
+      errors: [],
+      strength: 'Gợi tả được hương thơm đặc trưng của hoa sữa mùa thu.',
+      evidence: '"tỏa hương thơm ngát mỗi độ thu về"',
+      support: 'Bổ sung thêm hoạt động của học sinh dưới bóng mát cây.',
+      activity: 'Viết thêm câu miêu tả hoạt động vui chơi của em và các bạn quanh cây.',
+      feedback: 'Bài viết rất giàu cảm xúc, văn phong trong sáng. Cô khen em nhé!',
+      attachments: [],
+      custom: true,
+      sample: false,
+    });
+  }
+  console.log('✅ Đã nạp 3 học sinh lớp 4C (Trường Dịch Vọng A)');
+
+  // 7. Tạo học sinh cho 4D (Chu Văn An)
+  const students4D = ['Chu Đức Huy', 'Vũ Thảo Vy'];
+  for (let i = 0; i < students4D.length; i++) {
+    const studentId = `HS${String(i + 1).padStart(2, '0')}`;
+    await Student.create({
+      studentId,
+      name: students4D[i],
+      classId: '4D',
+    });
+    await Submission.create({
+      studentId,
+      classId: '4D',
+      assignmentId: assignment._id,
+      state: 'new',
+      text: '',
+      scores: [],
+      explain: [],
+      errors: [],
+      attachments: [],
+      custom: true,
+      sample: false,
+    });
+  }
+  console.log('✅ Đã nạp 2 học sinh lớp 4D (Trường Chu Văn An)');
+
+  console.log('🎉 NẠP DỮ LIỆU ĐA TRƯỜNG & PHÂN QUYỀN VÀO MONGODB ATLAS THÀNH CÔNG RỰC RỠ!');
 }
 
 if (process.argv[1]?.endsWith('seed.js')) {

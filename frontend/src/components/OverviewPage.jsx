@@ -3,7 +3,22 @@ import React from 'react';
 const total = (a) => (a || []).reduce((s, n) => s + Number(n), 0);
 const fmt = (n) => Number(n).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 
-export default function OverviewPage({ classroom, students, setPage, onSelectStudent }) {
+export default function OverviewPage({ classroom, students, setPage, onSelectStudent, onNewClassClick }) {
+  if (!classroom) {
+    return (
+      <div className="card" style={{ padding: '60px 30px', textAlign: 'center', maxWidth: '600px', margin: '40px auto' }}>
+        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏫</div>
+        <h2 style={{ margin: '0 0 10px 0', color: 'var(--ink)' }}>Chào mừng thầy cô đến với Hệ thống</h2>
+        <p style={{ color: 'var(--muted)', fontSize: '14px', margin: '0 0 24px 0', lineHeight: 1.6 }}>
+          Tài khoản của bạn hiện chưa có lớp học nào trong cơ sở dữ liệu. Hãy tạo lớp học đầu tiên của trường để bắt đầu nhập danh sách học sinh và nhận bài!
+        </p>
+        <button className="btn primary" onClick={onNewClassClick} style={{ padding: '10px 22px', fontSize: '14px' }}>
+          + Tạo lớp học mới ngay
+        </button>
+      </div>
+    );
+  }
+
   const approved = students.filter((s) => s.state === 'approved');
   const pending = students.filter((s) => s.state === 'suggested');
   const unsubmitted = students.filter((s) => s.state === 'new');
@@ -16,10 +31,12 @@ export default function OverviewPage({ classroom, students, setPage, onSelectStu
     <div>
       <div className="pagehead">
         <div>
-          <div className="eyebrow">TRỢ LÝ CHẤM CHỮA BÀI · THANH LÂN</div>
+          <div className="eyebrow">
+            TRỢ LÝ CHẤM CHỮA BÀI · {classroom?.school?.toUpperCase() || 'HỆ THỐNG ĐA TRƯỜNG'}
+          </div>
           <h1>Tổng quan {classroom?.label || ''}</h1>
           <p className="sub">
-            Năm học 2026-2027 · Dữ liệu được đồng bộ trực tiếp từ MongoDB Atlas Cloud
+            Năm học 2026-2027 · Quản lý và theo dõi tiến độ đánh giá bài viết
           </p>
         </div>
         <div className="actions">

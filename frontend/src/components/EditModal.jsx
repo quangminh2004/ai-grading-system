@@ -77,7 +77,7 @@ export default function EditModal({ student, onClose, onSave }) {
             <h3 style={{ margin: 0, fontSize: '18px' }}>
               Duyệt bài học sinh: {student.name} ({student.id})
             </h3>
-            <small style={{ color: '#7a8670' }}>Lưu trực tiếp vào MongoDB Atlas Cloud</small>
+            <small style={{ color: '#7a8670' }}>Đánh giá và ghi nhận xét chính thức</small>
           </div>
           <button
             className="iconbtn"

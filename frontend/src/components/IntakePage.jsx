@@ -17,7 +17,6 @@ export default function IntakePage({
   classroom,
   students,
   onUploadBatch,
-  onResetSamples,
   setPage,
 }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -87,16 +86,13 @@ export default function IntakePage({
     <div>
       <div className="pagehead">
         <div>
-          <div className="eyebrow">TRỢ LÝ CHẤM CHỮA BÀI · THANH LÂN</div>
+          <div className="eyebrow">
+            TRỢ LÝ CHẤM CHỮA BÀI · {classroom?.school?.toUpperCase() || 'HỆ THỐNG ĐA TRƯỜNG'}
+          </div>
           <h1>Nhận bài &amp; Chấm AI</h1>
           <p className="sub">
-            Tải lên bài làm dạng ảnh chụp hoặc PDF của học sinh {classroom?.label}. Tệp được lưu trữ và quản lý trên Cloud.
+            Tải lên bài làm dạng ảnh chụp hoặc PDF của học sinh {classroom?.label || 'lớp'}. Tệp được lưu trữ an toàn trên máy chủ hệ thống.
           </p>
-        </div>
-        <div className="actions">
-          <button className="btn outline" onClick={onResetSamples}>
-            <span>↻</span> Nạp bộ bài mẫu lớp 4A
-          </button>
         </div>
       </div>
 
@@ -178,13 +174,16 @@ export default function IntakePage({
                 ))}
               </div>
 
-              <div style={{ marginTop: '20px', textAlign: 'right' }}>
+              <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', color: '#556550' }}>
+                  ⚡ Sau khi tải lên, AI sẽ tự động đọc tệp, phân tích và đề xuất điểm ngay lập tức.
+                </span>
                 <button
                   className="btn primary"
                   disabled={uploading}
                   onClick={handleUpload}
                 >
-                  {uploading ? 'Đang tải lên...' : '🚀 Tiếp nhận & Lưu vào MongoDB Atlas'}
+                  {uploading ? '⏳ Đang tiếp nhận & AI đang chấm...' : '🚀 Tiếp nhận & AI Chấm ngay'}
                 </button>
               </div>
             </div>

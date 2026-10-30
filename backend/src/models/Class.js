@@ -24,6 +24,12 @@ const classSchema = new mongoose.Schema(
     school: {
       type: String,
       default: 'Trường Tiểu học Thanh Lân',
+      trim: true,
+    },
+    teacherUsername: {
+      type: String,
+      trim: true,
+      default: '',
     },
   },
   {

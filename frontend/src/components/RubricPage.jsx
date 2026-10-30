@@ -28,7 +28,9 @@ export default function RubricPage() {
     <div>
       <div className="pagehead">
         <div>
-          <div className="eyebrow">TRỢ LÝ CHẤM CHỮA BÀI · THANH LÂN</div>
+          <div className="eyebrow">
+            TRỢ LÝ CHẤM CHỮA BÀI · HỆ THỐNG TIÊU CHÍ CHUẨN
+          </div>
           <h1>Tiêu chí đánh giá đoạn văn miêu tả</h1>
           <p className="sub">
             Khung chấm điểm chuẩn môn Tiếng Việt Lớp 4 · Tổng điểm: 10 điểm.

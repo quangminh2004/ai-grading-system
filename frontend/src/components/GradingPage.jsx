@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getFileUrl, api } from '../api';
 
 const total = (a) => (a || []).reduce((s, n) => s + Number(n), 0);
 const fmt = (n) => Number(n).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
@@ -16,12 +17,64 @@ export default function GradingPage({
   onSelectStudent,
   onOpenEditModal,
   onExportCSV,
+  currentClassId,
+  onRefreshClass,
+  showToast,
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('review'); // 'review' | 'profile' | 'logs'
+  const [gradingAI, setGradingAI] = useState(false);
+  const [isEditingText, setIsEditingText] = useState(false);
+  const [editedText, setEditedText] = useState('');
 
   const current = students.find((s) => s.id === selectedId) || students[0];
+
+  useEffect(() => {
+    if (current) {
+      setEditedText(current.text || '');
+      setIsEditingText(false);
+    }
+  }, [current?.id]);
+
+  const handleGradeAI = async () => {
+    if (!current || !currentClassId) return;
+    setGradingAI(true);
+    try {
+      const textToSend = isEditingText ? editedText : (current.text || undefined);
+      const res = await api.gradeWithAI(currentClassId, current.id, textToSend);
+      if (res.success) {
+        showToast?.(res.message || '✓ AI đã chấm và đề xuất điểm bài làm thành công!');
+        setIsEditingText(false);
+        if (onRefreshClass) await onRefreshClass(currentClassId);
+      } else {
+        showToast?.(res.message || 'Lỗi khi kích hoạt AI');
+      }
+    } catch (err) {
+      showToast?.('Lỗi: ' + err.message);
+    } finally {
+      setGradingAI(false);
+    }
+  };
+
+  const handleGradeAllAI = async () => {
+    if (!currentClassId) return;
+    if (!window.confirm('Kích hoạt AI tự động chấm toàn bộ bài chưa duyệt trong lớp?')) return;
+    setGradingAI(true);
+    try {
+      const res = await api.gradeAllWithAI(currentClassId);
+      if (res.success) {
+        showToast?.(res.message || '✓ Đã chấm xong bài làm toàn lớp!');
+        if (onRefreshClass) await onRefreshClass(currentClassId);
+      } else {
+        showToast?.(res.message || 'Lỗi khi chấm bài');
+      }
+    } catch (err) {
+      showToast?.('Lỗi: ' + err.message);
+    } finally {
+      setGradingAI(false);
+    }
+  };
 
   const visibleStudents = students.filter((s) => {
     const matchFilter = filter === 'all' || s.state === filter;
@@ -62,6 +115,31 @@ export default function GradingPage({
           />
         </div>
 
+        <div style={{ padding: '0 12px 10px 12px' }}>
+          <button
+            className="btn compact outline"
+            onClick={handleGradeAllAI}
+            disabled={gradingAI}
+            style={{
+              width: '100%',
+              fontSize: '12px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 10px',
+              background: '#f6f9f3',
+              borderColor: '#b4cfab',
+              color: '#2b5a20',
+              fontWeight: '550',
+            }}
+            title="Kích hoạt AI chấm toàn bộ bài chưa duyệt trong lớp"
+          >
+            <span>{gradingAI ? '⏳' : '⚡'}</span>
+            <span>{gradingAI ? 'AI đang chấm cả lớp...' : 'AI Chấm cả lớp'}</span>
+          </button>
+        </div>
+
         <div className="filters">
           {[
             ['all', 'Tất cả'],
@@ -83,6 +161,7 @@ export default function GradingPage({
           {visibleStudents.map((s) => {
             const hasScores = (s.teacherScores || s.scores)?.length > 0;
             const scoreSum = hasScores ? total(s.teacherScores || s.scores) : null;
+            const hasAttachments = s.attachments?.length > 0;
             return (
               <button
                 key={s.id}
@@ -98,13 +177,21 @@ export default function GradingPage({
                   <div className="student-sub">
                     <span
                       className={`status ${
-                        s.state === 'approved' ? 'approved' : s.state === 'new' ? 'new' : ''
+                        s.state === 'approved'
+                          ? 'approved'
+                          : s.state === 'suggested' || hasScores
+                          ? 'suggested'
+                          : hasAttachments
+                          ? 'waiting'
+                          : 'new'
                       }`}
                     >
                       {s.state === 'approved'
                         ? 'Đã duyệt'
-                        : s.state === 'suggested'
+                        : s.state === 'suggested' || hasScores
                         ? 'Chờ GV duyệt'
+                        : hasAttachments
+                        ? 'Chờ AI chấm'
                         : 'Chưa có bài'}
                     </span>
                     {scoreSum !== null && (
@@ -135,17 +222,58 @@ export default function GradingPage({
                   <span>•</span>
                   <span>
                     Trạng thái: 
-                    <span className={`status ${current.state === 'approved' ? 'approved' : current.state === 'new' ? 'new' : ''}`} style={{ marginLeft: '6px' }}>
-                      {current.state === 'approved' ? 'Đã duyệt' : current.state === 'suggested' ? 'Chờ GV duyệt' : 'Chưa có kết quả'}
+                    <span
+                      className={`status ${
+                        current.state === 'approved'
+                          ? 'approved'
+                          : current.state === 'suggested' || (current.teacherScores || current.scores)?.length > 0
+                          ? 'suggested'
+                          : current.attachments?.length > 0
+                          ? 'waiting'
+                          : 'new'
+                      }`}
+                      style={{ marginLeft: '6px' }}
+                    >
+                      {current.state === 'approved'
+                        ? 'Đã duyệt'
+                        : current.state === 'suggested' || (current.teacherScores || current.scores)?.length > 0
+                        ? 'Chờ GV duyệt'
+                        : current.attachments?.length > 0
+                        ? 'Chờ AI chấm'
+                        : 'Chưa có bài'}
                     </span>
                   </span>
                   <span>•</span>
-                  <span>Đồng bộ: <b>MongoDB Atlas</b></span>
+                  <span>Trực tuyến: <b>Đã đồng bộ</b></span>
                 </div>
               </div>
             </div>
 
             <div className="detail-actions">
+              {/* NÚT KÍCH HOẠT CHẤM AI */}
+              <button
+                className="btn secondary"
+                onClick={handleGradeAI}
+                disabled={gradingAI}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: '#f0f7ec',
+                  color: '#285e20',
+                  border: '1px solid #b7d6ab',
+                  fontWeight: '550',
+                }}
+                title="Kích hoạt trợ lý AI phân tích và chấm bài"
+              >
+                <span>{gradingAI ? '⏳' : '⚡'}</span>
+                <span>
+                  {gradingAI
+                    ? 'AI đang chấm...'
+                    : (current.scores?.length > 0 ? 'AI Chấm lại' : 'Chấm bài bằng AI')}
+                </span>
+              </button>
+
               <button
                 className="btn primary"
                 onClick={() => onOpenEditModal(current)}
@@ -237,7 +365,7 @@ export default function GradingPage({
                       >
                         <span>📄</span>
                         <a
-                          href={att.sampleUrl || `http://localhost:5000${att.filePath}`}
+                          href={getFileUrl(att.filePath, att.sampleUrl)}
                           target="_blank"
                           rel="noreferrer"
                           style={{ color: '#2b5120', textDecoration: 'underline', fontWeight: '500' }}
@@ -254,7 +382,7 @@ export default function GradingPage({
                       current.attachments[0].name?.match(/\.(png|jpe?g)$/i)) && (
                       <div style={{ marginTop: '14px', textAlign: 'center', background: '#fafbfa', padding: '10px', borderRadius: '8px', border: '1px solid #e3e8dc' }}>
                         <img
-                          src={current.attachments[0].sampleUrl || `http://localhost:5000${current.attachments[0].filePath}`}
+                          src={getFileUrl(current.attachments[0].filePath, current.attachments[0].sampleUrl)}
                           alt="Bài làm gốc"
                           style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain', borderRadius: '4px' }}
                         />
@@ -265,24 +393,85 @@ export default function GradingPage({
 
               {/* Nội dung bài văn đã trích xuất */}
               <div className="card" style={{ padding: '18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <h4>Nội dung bài làm của học sinh</h4>
-                  <span style={{ fontSize: '12px', color: '#7a8670' }}>Văn bản nhận dạng OCR</span>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', color: '#7a8670' }}>Văn bản nhận dạng OCR</span>
+                    {!isEditingText ? (
+                      <button
+                        className="btn compact outline"
+                        style={{ fontSize: '12px', padding: '3px 9px' }}
+                        onClick={() => {
+                          setEditedText(current.text || '');
+                          setIsEditingText(true);
+                        }}
+                      >
+                        ✏️ Sửa văn bản bài làm
+                      </button>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          className="btn compact primary"
+                          style={{ fontSize: '12px', padding: '3px 9px' }}
+                          onClick={handleGradeAI}
+                          disabled={gradingAI}
+                        >
+                          ⚡ AI Chấm bài này
+                        </button>
+                        <button
+                          className="btn compact"
+                          style={{ fontSize: '12px', padding: '3px 9px' }}
+                          onClick={() => setIsEditingText(false)}
+                        >
+                          Hủy
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div
-                  style={{
-                    background: '#fbfcfa',
-                    padding: '16px',
-                    borderRadius: '8px',
-                    border: '1px solid #e2e7dc',
-                    fontFamily: 'serif',
-                    fontSize: '16px',
-                    lineHeight: '1.8',
-                    color: '#2a3525',
-                  }}
-                >
-                  {current.text || 'Chưa có nội dung bài làm.'}
-                </div>
+
+                {isEditingText ? (
+                  <div>
+                    <textarea
+                      rows={6}
+                      value={editedText}
+                      onChange={(e) => setEditedText(e.target.value)}
+                      placeholder="Nhập hoặc dán nội dung bài văn của học sinh vào đây..."
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid #7ea86f',
+                        fontFamily: 'serif',
+                        fontSize: '15px',
+                        lineHeight: '1.6',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <div style={{ marginTop: '6px', fontSize: '12px', color: '#666' }}>
+                      💡 Thầy cô có thể chỉnh sửa lỗi OCR rồi bấm <b>"⚡ AI Chấm bài này"</b> để AI phân tích lại điểm số và nhận xét.
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      background: '#fbfcfa',
+                      padding: '16px',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e7dc',
+                      fontFamily: 'serif',
+                      fontSize: '16px',
+                      lineHeight: '1.8',
+                      color: '#2a3525',
+                    }}
+                  >
+                    {current.text || (
+                      <div style={{ color: '#888', fontStyle: 'italic' }}>
+                        Chưa có nội dung bài làm. Bấm nút <b>"⚡ Chấm bài bằng AI"</b> ở góc trên hoặc <b>"✏️ Sửa văn bản bài làm"</b> để AI tiến hành đọc và chấm điểm.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* 4 Tiêu chí đánh giá */}

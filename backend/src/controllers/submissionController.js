@@ -1,6 +1,7 @@
 import { Submission } from '../models/Submission.js';
 import { Assignment } from '../models/Assignment.js';
 import { Student } from '../models/Student.js';
+import { autoGradeSubmission } from '../services/aiGradingService.js';
 
 // GET /api/assignment
 export const getAssignment = async (req, res) => {
@@ -66,7 +67,7 @@ export const reviewSubmission = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Cập nhật và lưu vào MongoDB Atlas thành công',
+      message: 'Cập nhật và lưu kết quả thành công',
       submission: sub,
     });
   } catch (error) {
@@ -75,7 +76,7 @@ export const reviewSubmission = async (req, res) => {
 };
 
 // POST /api/classes/:classId/submissions/receive-batch
-// Nhận tệp từ upload, ghép với học sinh và lưu vào MongoDB
+// Nhận tệp từ upload, ghép với học sinh và tự động kích hoạt AI chấm & đề xuất điểm
 export const receiveUploadedFiles = async (req, res) => {
   try {
     const { classId } = req.params;
@@ -111,10 +112,8 @@ export const receiveUploadedFiles = async (req, res) => {
         fileSize: file.size,
       });
 
-      // Nếu bài chưa có kết quả, trạng thái là new chờ đọc
-      if (sub.state === 'new') {
-        sub.custom = true;
-      }
+      // TỰ ĐỘNG CHẤM & ĐỀ XUẤT ĐIỂM BẰNG AI
+      await autoGradeSubmission(sub);
 
       await sub.save();
       processed++;
@@ -122,7 +121,67 @@ export const receiveUploadedFiles = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Đã tiếp nhận ${processed} tệp vào cơ sở dữ liệu`,
+      message: `Đã tiếp nhận ${processed} bài và AI đã hoàn tất chấm, đề xuất điểm!`,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/classes/:classId/submissions/:studentId/grade-ai
+// Kích hoạt AI chấm điểm cho một học sinh cụ thể
+export const gradeSubmissionWithAI = async (req, res) => {
+  try {
+    const { classId, studentId } = req.params;
+    const { text } = req.body;
+
+    let sub = await Submission.findOne({ classId, studentId });
+    if (!sub) {
+      sub = new Submission({
+        classId,
+        studentId,
+        state: 'new',
+        custom: true,
+      });
+    }
+
+    if (text !== undefined) {
+      sub.text = text;
+    }
+
+    await autoGradeSubmission(sub);
+    await sub.save();
+
+    res.json({
+      success: true,
+      message: 'AI đã chấm và đề xuất điểm bài làm thành công!',
+      submission: sub,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/classes/:classId/submissions/grade-all-ai
+// Kích hoạt AI chấm toàn bộ bài trong lớp
+export const gradeAllSubmissionsWithAI = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const subs = await Submission.find({ classId });
+    let count = 0;
+
+    for (const sub of subs) {
+      if (sub.state !== 'approved') {
+        await autoGradeSubmission(sub);
+        await sub.save();
+        count++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `AI đã chấm xong ${count} bài làm trong lớp!`,
+      count,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

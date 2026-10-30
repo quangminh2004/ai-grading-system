@@ -5,16 +5,39 @@ import fs from 'fs';
 import {
   getClasses,
   createClass,
+  deleteClass,
   getClassDetails,
   addStudent,
   importRoster,
-  resetToSamples,
 } from '../controllers/classController.js';
 import {
   getAssignment,
   reviewSubmission,
   receiveUploadedFiles,
+  gradeSubmissionWithAI,
+  gradeAllSubmissionsWithAI,
 } from '../controllers/submissionController.js';
+import {
+  login,
+  getMe,
+  changePassword,
+} from '../controllers/authController.js';
+import {
+  getAllUsers,
+  createTeacher,
+  updateUser,
+  resetUserPassword,
+  deleteUser,
+  getAdminStats,
+} from '../controllers/userController.js';
+import {
+  getSchoolsList,
+  createSchool,
+  updateSchool,
+  deleteSchool,
+  getSchoolsSummary,
+} from '../controllers/schoolController.js';
+import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -40,19 +63,39 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 }, // 25MB max
 });
 
-// Các routes cho Lớp học & Học sinh
-router.get('/classes', getClasses);
-router.post('/classes', createClass);
-router.get('/classes/:classId/full', getClassDetails);
-router.post('/classes/:classId/students', addStudent);
-router.post('/classes/:classId/roster', importRoster);
-router.post('/reset-samples', resetToSamples);
+// ==================== AUTH & SCHOOLS ROUTES ====================
+router.post('/auth/login', login);
+router.get('/auth/me', requireAuth, getMe);
+router.post('/auth/change-password', requireAuth, changePassword);
+router.get('/schools', getSchoolsList);
+router.post('/schools', requireAuth, requireAdmin, createSchool);
+router.put('/schools/:id', requireAuth, requireAdmin, updateSchool);
+router.delete('/schools/:id', requireAuth, requireAdmin, deleteSchool);
 
-// Các routes cho Tiêu chí & Bài tập
+// ==================== ADMIN ROUTES ====================
+router.get('/admin/users', requireAuth, requireAdmin, getAllUsers);
+router.post('/admin/users/create-teacher', requireAuth, requireAdmin, createTeacher);
+router.put('/admin/users/:id', requireAuth, requireAdmin, updateUser);
+router.post('/admin/users/:id/reset-password', requireAuth, requireAdmin, resetUserPassword);
+router.delete('/admin/users/:id', requireAuth, requireAdmin, deleteUser);
+router.get('/admin/stats', requireAuth, requireAdmin, getAdminStats);
+router.get('/admin/schools-summary', requireAuth, requireAdmin, getSchoolsSummary);
+
+// ==================== LỚP HỌC & HỌC SINH ====================
+router.get('/classes', optionalAuth, getClasses);
+router.post('/classes', optionalAuth, createClass);
+router.delete('/classes/:classId', optionalAuth, deleteClass);
+router.get('/classes/:classId/full', optionalAuth, getClassDetails);
+router.post('/classes/:classId/students', optionalAuth, addStudent);
+router.post('/classes/:classId/roster', optionalAuth, importRoster);
+
+// ==================== TIÊU CHÍ & BÀI TẬP ====================
 router.get('/assignment', getAssignment);
 
-// Các routes cho Bài nộp & Chấm/Duyệt
-router.patch('/classes/:classId/submissions/:studentId/review', reviewSubmission);
+// ==================== BÀI NỘP & CHẤM/DUYỆT ====================
+router.patch('/classes/:classId/submissions/:studentId/review', optionalAuth, reviewSubmission);
+router.post('/classes/:classId/submissions/:studentId/grade-ai', optionalAuth, gradeSubmissionWithAI);
+router.post('/classes/:classId/submissions/grade-all-ai', optionalAuth, gradeAllSubmissionsWithAI);
 router.post(
   '/classes/:classId/submissions/receive-batch',
   upload.array('files', 20),

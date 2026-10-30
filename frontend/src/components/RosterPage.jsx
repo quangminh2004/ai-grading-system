@@ -32,7 +32,9 @@ export default function RosterPage({
     <div>
       <div className="pagehead">
         <div>
-          <div className="eyebrow">TRỢ LÝ CHẤM CHỮA BÀI · THANH LÂN</div>
+          <div className="eyebrow">
+            TRỢ LÝ CHẤM CHỮA BÀI · {classroom?.school?.toUpperCase() || 'HỆ THỐNG ĐA TRƯỜNG'}
+          </div>
           <h1>Danh sách học sinh · {classroom?.label}</h1>
           <p className="sub">
             Quản lý sĩ số lớp {classroom?.label}. Tổng cộng: {students.length} học sinh.
@@ -139,7 +141,7 @@ export default function RosterPage({
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
               <button type="submit" className="btn primary">
-                Lưu vào MongoDB Atlas
+                ✓ Thêm học sinh
               </button>
               <button type="button" className="btn outline" onClick={() => setTab('list')}>
                 Hủy

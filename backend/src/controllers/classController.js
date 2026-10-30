@@ -2,12 +2,32 @@ import { Class } from '../models/Class.js';
 import { Student } from '../models/Student.js';
 import { Submission } from '../models/Submission.js';
 import { Assignment } from '../models/Assignment.js';
-import { runSeed } from '../scripts/seed.js';
 
 // GET /api/classes
 export const getClasses = async (req, res) => {
   try {
-    const classes = await Class.find().sort({ classId: 1 }).lean();
+    const { school } = req.query;
+    const filter = {};
+
+    if (school) {
+      filter.school = school;
+    } else if (req.user && req.user.role === 'teacher') {
+      // Nếu là giáo viên, ưu tiên hiển thị lớp của trường cô hoặc lớp do cô quản lý
+      if (req.user.school) {
+        filter.$or = [
+          { school: req.user.school },
+          { teacherUsername: req.user.username },
+        ];
+      }
+    }
+
+    let classes = await Class.find(filter).sort({ classId: 1 }).lean();
+
+    // Nếu bộ lọc trường học của giáo viên chưa có lớp nào, trả về tất cả lớp để không bị rỗng
+    if (!classes.length && req.user && req.user.role === 'teacher') {
+      classes = await Class.find().sort({ classId: 1 }).lean();
+    }
+
     res.json({ success: true, classes });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -17,7 +37,7 @@ export const getClasses = async (req, res) => {
 // POST /api/classes
 export const createClass = async (req, res) => {
   try {
-    const { classId, label, grade } = req.body;
+    const { classId, label, grade, school } = req.body;
     if (!classId || !label) {
       return res.status(400).json({ success: false, message: 'Thiếu mã lớp hoặc tên lớp' });
     }
@@ -27,13 +47,39 @@ export const createClass = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mã lớp đã tồn tại' });
     }
 
+    const schoolName = (school || (req.user && req.user.school) || 'Trường Tiểu học Thanh Lân').trim();
+
     const newClass = await Class.create({
       classId: cleanId,
       label: label.trim(),
       grade: grade || '4',
+      school: schoolName,
+      teacherUsername: req.user ? req.user.username : '',
     });
 
     res.status(201).json({ success: true, class: newClass });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// DELETE /api/classes/:classId
+export const deleteClass = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const deleted = await Class.findOneAndDelete({ classId });
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    // Xóa các học sinh và bài nộp liên quan
+    await Student.deleteMany({ classId });
+    await Submission.deleteMany({ classId });
+
+    res.json({
+      success: true,
+      message: `Đã xóa lớp ${deleted.label} (${classId}) và toàn bộ dữ liệu bài nộp liên quan.`,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -99,10 +145,20 @@ export const addStudent = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Tên học sinh không được để trống' });
     }
 
-    let finalId = studentId?.trim().toUpperCase();
+    const classroom = await Class.findOne({ classId });
+    if (!classroom) {
+      return res.status(404).json({ success: false, message: 'Lớp không tồn tại' });
+    }
+
+    let finalId = studentId ? studentId.trim().toUpperCase() : '';
     if (!finalId) {
-      const count = await Student.countDocuments({ classId });
-      finalId = `HS${String(count + 1).padStart(2, '0')}`;
+      const currentCount = await Student.countDocuments({ classId });
+      finalId = `HS${String(currentCount + 1).padStart(2, '0')}`;
+    }
+
+    const exists = await Student.findOne({ classId, studentId: finalId });
+    if (exists) {
+      return res.status(400).json({ success: false, message: `Mã học sinh ${finalId} đã tồn tại trong lớp` });
     }
 
     const student = await Student.create({
@@ -111,9 +167,8 @@ export const addStudent = async (req, res) => {
       classId,
     });
 
-    // Create blank submission for this student
     const defaultAssignment = await Assignment.findOne();
-    await Submission.create({
+    const submission = await Submission.create({
       studentId: finalId,
       classId,
       assignmentId: defaultAssignment?._id,
@@ -126,26 +181,40 @@ export const addStudent = async (req, res) => {
       custom: true,
     });
 
-    res.status(201).json({ success: true, student });
+    res.status(201).json({
+      success: true,
+      student: {
+        id: student.studentId,
+        studentMongoId: student._id,
+        name: student.name,
+        submissionId: submission._id,
+        state: 'new',
+        scores: [],
+        explain: [],
+        errors: [],
+        attachments: [],
+        logs: [],
+        custom: true,
+      },
+    });
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(400).json({ success: false, message: 'Mã học sinh đã tồn tại trong lớp' });
-    }
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// POST /api/classes/:classId/roster (bulk import)
+// POST /api/classes/:classId/roster
+// Nhập danh sách học sinh nhiều dòng
 export const importRoster = async (req, res) => {
   try {
     const { classId } = req.params;
-    const { rawNames } = req.body; // text with newline or comma
-    if (!rawNames?.trim()) {
-      return res.status(400).json({ success: false, message: 'Dữ liệu danh sách trống' });
+    const { rawNames } = req.body;
+
+    if (!rawNames || typeof rawNames !== 'string') {
+      return res.status(400).json({ success: false, message: 'Danh sách họ tên không hợp lệ' });
     }
 
     const lines = rawNames
-      .split(/\r?\n/)
+      .split('\n')
       .map((l) => l.trim())
       .filter(Boolean);
 
@@ -194,16 +263,6 @@ export const importRoster = async (req, res) => {
     }
 
     res.json({ success: true, message: `Đã thêm ${createdCount} học sinh`, count: createdCount });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// POST /api/reset-samples
-export const resetToSamples = async (req, res) => {
-  try {
-    await runSeed();
-    res.json({ success: true, message: 'Đã khôi phục dữ liệu mẫu thành công vào MongoDB Atlas' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
