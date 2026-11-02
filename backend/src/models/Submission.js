@@ -38,6 +38,16 @@ const submissionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Assignment',
     },
+    // Số thứ tự bài nộp của học sinh (bài 1, bài 2, ...)
+    submissionNumber: {
+      type: Number,
+      default: 1,
+    },
+    // Nhãn bài nộp (VD: "Bài nộp 1", "Bài nộp lại", ...)
+    submissionLabel: {
+      type: String,
+      default: '',
+    },
     state: {
       type: String,
       enum: ['new', 'suggested', 'approved'],
@@ -93,6 +103,8 @@ const submissionSchema = new mongoose.Schema(
   }
 );
 
+// Index không unique — một học sinh có thể có nhiều bài nộp
 submissionSchema.index({ classId: 1, studentId: 1 });
+submissionSchema.index({ classId: 1, studentId: 1, submissionNumber: 1 });
 
 export const Submission = mongoose.model('Submission', submissionSchema);

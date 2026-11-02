@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import {
   getClasses,
   createClass,
@@ -14,6 +15,7 @@ import {
   getAssignment,
   reviewSubmission,
   receiveUploadedFiles,
+  uploadStudentSubmission,
   gradeSubmissionWithAI,
   gradeAllSubmissionsWithAI,
 } from '../controllers/submissionController.js';
@@ -41,8 +43,11 @@ import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Cấu hình lưu trữ tệp tải lên
-const uploadDir = path.resolve('uploads');
+// Thư mục lưu ảnh upload — dùng __dirname để đảm bảo đúng dù chạy từ bất kỳ đâu
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// backend/uploads (cùng cấp với src/)
+const uploadDir = path.resolve(__dirname, '../../uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -96,6 +101,11 @@ router.get('/assignment', getAssignment);
 router.patch('/classes/:classId/submissions/:studentId/review', optionalAuth, reviewSubmission);
 router.post('/classes/:classId/submissions/:studentId/grade-ai', optionalAuth, gradeSubmissionWithAI);
 router.post('/classes/:classId/submissions/grade-all-ai', optionalAuth, gradeAllSubmissionsWithAI);
+router.post(
+  '/classes/:classId/submissions/:studentId/upload',
+  upload.array('files', 10),
+  uploadStudentSubmission
+);
 router.post(
   '/classes/:classId/submissions/receive-batch',
   upload.array('files', 20),

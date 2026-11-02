@@ -1,6 +1,12 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { createWorker } from 'tesseract.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Thư mục uploads cố định: backend/uploads/
+const UPLOADS_DIR = path.resolve(__dirname, '../../uploads');
 
 // Worker Tesseract OCR dùng chung để tối ưu tốc độ nhận diện
 let tesseractWorker = null;
@@ -256,13 +262,20 @@ export async function autoGradeSubmission(sub) {
   // Nếu bài chưa có văn bản nhưng có tệp đính kèm (ảnh / pdf) -> Dùng AI OCR đọc thật tệp
   if (!extractedText && sub.attachments && sub.attachments.length > 0) {
     const att = sub.attachments[0];
+    // Ưu tiên UPLOADS_DIR tuyệt đối (backend/uploads/)
+    const filename = path.basename(att.filePath || att.name || '');
     const candidatePaths = [
+      path.join(UPLOADS_DIR, filename),
       path.resolve(att.filePath.replace(/^\//, '')),
       path.resolve('backend', att.filePath.replace(/^\//, '')),
-      path.resolve('uploads', path.basename(att.filePath)),
-      path.resolve('backend/uploads', path.basename(att.filePath)),
-    ];
+      path.resolve('uploads', filename),
+      path.resolve('backend/uploads', filename),
+    ].filter(Boolean);
     const filePath = candidatePaths.find((p) => fs.existsSync(p));
+    console.log(`🔍 OCR tìm file: ${filename} → ${filePath || 'KHÔNG TÌM THẤY'}`);
+    if (!filePath) {
+      console.log(`   Các đường thử: ${candidatePaths.join(' | ')}`);
+    }
 
     if (filePath) {
       try {
@@ -303,9 +316,27 @@ export async function autoGradeSubmission(sub) {
     }
   }
 
-  // Nếu văn bản vẫn rỗng (ví dụ: ảnh mờ hoặc không có tệp) -> dùng văn bản mặc định để phân tích
+  // Nếu văn bản vẫn rỗng sau OCR (ảnh mờ, không đọc được) → KHÔNG dùng văn bản giả
+  // Báo trạng thái chờ giáo viên nhập tay thay thế
   if (!extractedText) {
-    extractedText = 'Cây bàng ở góc sân trường em vươn cao với tán lá xanh mát. Mùa hè, chúng em thường ngồi dưới gốc cây đọc sách và chơi đùa. Em rất yêu quý cây bàng của trường em.';
+    sub.state = 'new'; // Giữ trạng thái chưa chấm được
+    sub.text = '';
+    sub.scores = [];
+    sub.explain = [];
+    sub.errors = [];
+    sub.strength = '';
+    sub.support = 'OCR không đọc được nội dung từ ảnh. Thầy cô vui lòng nhấn "✏️ Sửa văn bản bài làm" để nhập tay rồi bấm "⚡ AI Chấm bài này".';
+    sub.activity = '';
+    sub.feedback = 'Chưa đọc được bài làm từ ảnh.';
+    sub.evidence = '';
+    sub.logs = sub.logs || [];
+    sub.logs.push({
+      at: new Date(),
+      action: 'ocr_failed',
+      scores: [],
+      reason: 'OCR không đọc được văn bản từ ảnh — cần giáo viên nhập tay',
+    });
+    return sub;
   }
 
   // Đánh giá ngôn ngữ bằng động cơ NLP Tiếng Việt Tiểu học

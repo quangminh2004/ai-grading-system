@@ -223,6 +223,7 @@ export const api = {
   },
 
   reviewSubmission: async (classId, studentId, reviewData) => {
+    // reviewData có thể chứa submissionId để duyệt bài cụ thể
     const res = await fetch(`${API_BASE}/classes/${classId}/submissions/${studentId}/review`, {
       method: 'PATCH',
       headers: authHeaders(),
@@ -244,11 +245,24 @@ export const api = {
     return res.json();
   },
 
-  gradeWithAI: async (classId, studentId, text) => {
+  uploadStudentSubmission: async (classId, studentId, formData) => {
+    const token = getToken();
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE}/classes/${classId}/submissions/${studentId}/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    return res.json();
+  },
+
+  gradeWithAI: async (classId, studentId, text, submissionId) => {
     const res = await fetch(`${API_BASE}/classes/${classId}/submissions/${studentId}/grade-ai`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, submissionId }),
     });
     return res.json();
   },

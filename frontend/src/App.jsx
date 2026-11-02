@@ -193,11 +193,15 @@ export default function App() {
     }
   };
 
-  // Lưu duyệt / sửa điểm vào MongoDB Atlas (Giáo viên)
+  // Lưu duyệt / sửa điểm vào MongoDB (Giáo viên)
   const handleSaveReview = async (reviewData) => {
     if (!editStudent) return;
     try {
-      const res = await api.reviewSubmission(currentClassId, editStudent.id, reviewData);
+      // Truyền submissionId để duyệt đúng bài được chọn (nếu học sinh có nhiều bài)
+      const dataWithSubId = editStudent.submissionId
+        ? { ...reviewData, submissionId: editStudent.submissionId }
+        : reviewData;
+      const res = await api.reviewSubmission(currentClassId, editStudent.id, dataWithSubId);
       if (res.success) {
         showToast(
           reviewData.state === 'approved'

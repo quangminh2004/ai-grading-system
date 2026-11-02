@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getFileUrl, api } from '../api';
 
 const total = (a) => (a || []).reduce((s, n) => s + Number(n), 0);
@@ -23,26 +23,87 @@ export default function GradingPage({
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
-  const [activeTab, setActiveTab] = useState('review'); // 'review' | 'profile' | 'logs'
+  const [activeTab, setActiveTab] = useState('review');
   const [gradingAI, setGradingAI] = useState(false);
+  const [uploadingDirect, setUploadingDirect] = useState(false);
   const [isEditingText, setIsEditingText] = useState(false);
   const [editedText, setEditedText] = useState('');
+  // Index bài nộp đang xem của học sinh hiện tại (0 = bài đầu tiên)
+  const [activeSubIdx, setActiveSubIdx] = useState(0);
+
+  const fileInputRef = useRef(null);
 
   const current = students.find((s) => s.id === selectedId) || students[0];
 
+  // Khi đổi học sinh → reset về bài mới nhất
   useEffect(() => {
     if (current) {
-      setEditedText(current.text || '');
+      const subs = current.allSubmissions || [];
+      setActiveSubIdx(subs.length > 0 ? subs.length - 1 : 0);
+      setEditedText('');
       setIsEditingText(false);
     }
   }, [current?.id]);
+
+  // Bài nộp đang được xem
+  const allSubs = current?.allSubmissions || [];
+  // Nếu có allSubmissions dùng nó, nếu không fallback về dữ liệu student
+  const activeSub = allSubs.length > 0 ? allSubs[activeSubIdx] || allSubs[allSubs.length - 1] : null;
+
+  // Dữ liệu hiển thị: ưu tiên activeSub (bài được chọn), fallback sang student gốc
+  const displayData = activeSub || {
+    state: current?.state || 'new',
+    text: current?.text || '',
+    scores: current?.scores || [],
+    teacherScores: current?.teacherScores || null,
+    explain: current?.explain || [],
+    errors: current?.errors || [],
+    strength: current?.strength || '',
+    evidence: current?.evidence || '',
+    support: current?.support || '',
+    activity: current?.activity || '',
+    feedback: current?.feedback || '',
+    teacherFeedback: current?.teacherFeedback || '',
+    attachments: current?.attachments || [],
+    logs: current?.logs || [],
+  };
+
+  // Nạp bài ảnh trực tiếp cho học sinh hiện tại từ bất kỳ tệp nào
+  const handleDirectUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !current || !currentClassId) return;
+
+    setUploadingDirect(true);
+    showToast?.('⏳ Đang nạp tệp lên và AI đang đọc chữ, phân tích & chấm điểm...');
+    try {
+      const formData = new FormData();
+      files.forEach((f) => formData.append('files', f));
+
+      const res = await api.uploadStudentSubmission(currentClassId, current.id, formData);
+      if (res.success) {
+        showToast?.(res.message || '✓ Đã tải bài lên và AI đã hoàn tất chấm điểm!');
+        if (onRefreshClass) {
+          await onRefreshClass(currentClassId);
+        }
+      } else {
+        showToast?.(res.message || 'Lỗi khi tải tệp');
+      }
+    } catch (err) {
+      showToast?.('Lỗi tải tệp: ' + err.message);
+    } finally {
+      setUploadingDirect(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleGradeAI = async () => {
     if (!current || !currentClassId) return;
     setGradingAI(true);
     try {
-      const textToSend = isEditingText ? editedText : (current.text || undefined);
-      const res = await api.gradeWithAI(currentClassId, current.id, textToSend);
+      const textToSend = isEditingText ? editedText : (displayData.text || undefined);
+      const submissionIdToSend = activeSub?._id;
+
+      const res = await api.gradeWithAI(currentClassId, current.id, textToSend, submissionIdToSend);
       if (res.success) {
         showToast?.(res.message || '✓ AI đã chấm và đề xuất điểm bài làm thành công!');
         setIsEditingText(false);
@@ -93,11 +154,21 @@ export default function GradingPage({
     );
   }
 
-  const currentScores = current.teacherScores || current.scores || [];
+  const currentScores = displayData.teacherScores || displayData.scores || [];
   const currentTotal = total(currentScores);
 
   return (
     <div className="layout grading-layout">
+      {/* Ẩn input file để nạp bài trực tiếp từ máy tính */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        multiple
+        accept="image/png,image/jpeg,application/pdf"
+        onChange={handleDirectUpload}
+      />
+
       {/* LEFT PANEL: Student list */}
       <div className="card">
         <div className="card-head">
@@ -159,9 +230,11 @@ export default function GradingPage({
 
         <div className="student-list" style={{ maxHeight: '650px', overflowY: 'auto' }}>
           {visibleStudents.map((s) => {
+            const subs = s.allSubmissions || [];
             const hasScores = (s.teacherScores || s.scores)?.length > 0;
             const scoreSum = hasScores ? total(s.teacherScores || s.scores) : null;
-            const hasAttachments = s.attachments?.length > 0;
+            const hasAttachments = s.attachments?.length > 0 || subs.some((sb) => sb.attachments?.length > 0);
+            const subCount = subs.length;
             return (
               <button
                 key={s.id}
@@ -194,6 +267,11 @@ export default function GradingPage({
                         ? 'Chờ AI chấm'
                         : 'Chưa có bài'}
                     </span>
+                    {subCount > 1 && (
+                      <span style={{ fontSize: '11px', color: '#2d5a22', background: '#eaf4e6', padding: '1px 7px', borderRadius: '10px', fontWeight: 'bold' }}>
+                        {subCount} bài
+                      </span>
+                    )}
                     {scoreSum !== null && (
                       <span className="student-score">
                         {fmt(scoreSum)}
@@ -221,40 +299,60 @@ export default function GradingPage({
                   <span>Mã: <b>{current.id}</b></span>
                   <span>•</span>
                   <span>
-                    Trạng thái: 
+                    Trạng thái:
                     <span
                       className={`status ${
-                        current.state === 'approved'
+                        displayData.state === 'approved'
                           ? 'approved'
-                          : current.state === 'suggested' || (current.teacherScores || current.scores)?.length > 0
+                          : displayData.state === 'suggested' || (displayData.teacherScores || displayData.scores)?.length > 0
                           ? 'suggested'
-                          : current.attachments?.length > 0
+                          : displayData.attachments?.length > 0
                           ? 'waiting'
                           : 'new'
                       }`}
                       style={{ marginLeft: '6px' }}
                     >
-                      {current.state === 'approved'
+                      {displayData.state === 'approved'
                         ? 'Đã duyệt'
-                        : current.state === 'suggested' || (current.teacherScores || current.scores)?.length > 0
+                        : displayData.state === 'suggested' || (displayData.teacherScores || displayData.scores)?.length > 0
                         ? 'Chờ GV duyệt'
-                        : current.attachments?.length > 0
+                        : displayData.attachments?.length > 0
                         ? 'Chờ AI chấm'
                         : 'Chưa có bài'}
                     </span>
                   </span>
                   <span>•</span>
-                  <span>Trực tuyến: <b>Đã đồng bộ</b></span>
+                  <span>Tổng số bài đã nộp: <b>{allSubs.length || (displayData.attachments?.length ? 1 : 0)} bài</b></span>
                 </div>
               </div>
             </div>
 
-            <div className="detail-actions">
-              {/* NÚT KÍCH HOẠT CHẤM AI */}
+            <div className="detail-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {/* Nút nạp ảnh bài làm trực tiếp cho học sinh này */}
+              <button
+                className="btn secondary"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingDirect}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: '#e8f4e5',
+                  color: '#24561c',
+                  border: '1px solid #a8d49a',
+                  fontWeight: '600',
+                }}
+                title="Tải ảnh bài làm (chụp từ điện thoại/máy ảnh/PDF) cho học sinh này từ bất kỳ thư mục nào"
+              >
+                <span>{uploadingDirect ? '⏳' : '📤'}</span>
+                <span>{uploadingDirect ? 'Đang nạp & chấm...' : 'Nạp bài ảnh mới'}</span>
+              </button>
+
+              {/* Nút kích hoạt chấm AI */}
               <button
                 className="btn secondary"
                 onClick={handleGradeAI}
-                disabled={gradingAI}
+                disabled={gradingAI || uploadingDirect}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -270,15 +368,15 @@ export default function GradingPage({
                 <span>
                   {gradingAI
                     ? 'AI đang chấm...'
-                    : (current.scores?.length > 0 ? 'AI Chấm lại' : 'Chấm bài bằng AI')}
+                    : (displayData.scores?.length > 0 ? 'AI Chấm lại' : 'Chấm bài bằng AI')}
                 </span>
               </button>
 
               <button
                 className="btn primary"
-                onClick={() => onOpenEditModal(current)}
+                onClick={() => onOpenEditModal({ ...current, ...displayData, submissionId: activeSub?._id })}
               >
-                <span>✎</span> Chỉnh sửa &amp; Duyệt bài
+                <span>✎</span> Chỉnh sửa & Duyệt bài
               </button>
               <button className="btn outline" onClick={onExportCSV}>
                 Xuất CSV
@@ -286,13 +384,70 @@ export default function GradingPage({
             </div>
           </div>
 
+          {/* Thanh chuyển đổi giữa các bài nộp (nếu học sinh có nhiều bài) */}
+          {allSubs.length > 1 && (
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              padding: '10px 14px',
+              background: '#f8faf6',
+              borderRadius: '8px',
+              border: '1px solid #e1e9dc',
+              overflowX: 'auto',
+              marginBottom: '12px',
+              alignItems: 'center',
+            }}>
+              <span style={{ fontSize: '13px', color: '#4a5b44', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+                📋 Các lần nộp ({allSubs.length} bài):
+              </span>
+              {allSubs.map((sb, idx) => {
+                const sbTotal = total(sb.teacherScores || sb.scores);
+                const hasScore = (sb.teacherScores || sb.scores)?.length > 0;
+                const isSelected = activeSubIdx === idx;
+                return (
+                  <button
+                    key={sb._id || idx}
+                    onClick={() => { setActiveSubIdx(idx); setIsEditingText(false); }}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      border: `2px solid ${isSelected ? '#3d6333' : '#c8d6c0'}`,
+                      background: isSelected ? '#3d6333' : '#fff',
+                      color: isSelected ? '#fff' : '#2b5120',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <span>{sb.submissionLabel || `Bài ${idx + 1}`}</span>
+                    {hasScore && (
+                      <span style={{
+                        background: isSelected ? 'rgba(255,255,255,0.25)' : '#eef5ec',
+                        padding: '1px 6px',
+                        borderRadius: '10px',
+                        fontSize: '11px',
+                      }}>
+                        {fmt(sbTotal)}/10
+                      </span>
+                    )}
+                    {sb.state === 'approved' && <span>✓ Đã duyệt</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Tabs */}
           <div className="tabs">
             <button
               className={`tab ${activeTab === 'review' ? 'active' : ''}`}
               onClick={() => setActiveTab('review')}
             >
-              Bài làm &amp; Chấm chữa
+              Bài làm & Chấm chữa
             </button>
             <button
               className={`tab ${activeTab === 'profile' ? 'active' : ''}`}
@@ -304,7 +459,7 @@ export default function GradingPage({
               className={`tab ${activeTab === 'logs' ? 'active' : ''}`}
               onClick={() => setActiveTab('logs')}
             >
-              Nhật ký duyệt ({current.logs?.length || 0})
+              Nhật ký duyệt ({displayData.logs?.length || 0})
             </button>
           </div>
 
@@ -314,8 +469,8 @@ export default function GradingPage({
               {/* Score summary banner */}
               <div
                 style={{
-                  background: current.state === 'approved' ? '#ebf4e6' : '#fff9ea',
-                  border: `1px solid ${current.state === 'approved' ? '#bcd4af' : '#ebd49d'}`,
+                  background: displayData.state === 'approved' ? '#ebf4e6' : '#fff9ea',
+                  border: `1px solid ${displayData.state === 'approved' ? '#bcd4af' : '#ebd49d'}`,
                   borderRadius: '10px',
                   padding: '16px 20px',
                   display: 'flex',
@@ -325,7 +480,8 @@ export default function GradingPage({
               >
                 <div>
                   <div style={{ fontSize: '13px', color: '#55634e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    {current.teacherScores ? 'Điểm chính thức (Giáo viên duyệt)' : 'Điểm đề xuất từ AI'}
+                    {displayData.teacherScores ? 'Điểm chính thức (Giáo viên duyệt)' : 'Điểm đề xuất từ AI'}
+                    {activeSub?.submissionLabel && ` · ${activeSub.submissionLabel}`}
                   </div>
                   <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#273822' }}>
                     {currentScores.length ? fmt(currentTotal) : '—'}
@@ -334,24 +490,38 @@ export default function GradingPage({
                 </div>
 
                 <div style={{ textAlign: 'right' }}>
-                  {current.state === 'approved' ? (
+                  {displayData.state === 'approved' ? (
                     <div style={{ color: '#2f5926', fontWeight: 'bold' }}>
                       ✓ Đã được giáo viên xác nhận
                     </div>
-                  ) : (
+                  ) : currentScores.length > 0 ? (
                     <div style={{ color: '#8d6313', fontStyle: 'italic' }}>
                       ⏳ Cần giáo viên kiểm tra và bấm duyệt
+                    </div>
+                  ) : (
+                    <div style={{ color: '#888', fontStyle: 'italic' }}>
+                      📭 Chưa có bài làm hoặc chưa có điểm
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Tệp đính kèm & Ảnh/PDF */}
-              {current.attachments?.length > 0 && (
+              {displayData.attachments?.length > 0 ? (
                 <div className="card" style={{ padding: '16px' }}>
-                  <h4>Tệp bài làm gốc ({current.attachments.length} tệp)</h4>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ margin: 0 }}>Tệp bài làm gốc ({displayData.attachments.length} tệp)</h4>
+                    <button
+                      className="btn compact outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingDirect}
+                      style={{ fontSize: '12px' }}
+                    >
+                      + Nạp thêm bài mới cho em này
+                    </button>
+                  </div>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
-                    {current.attachments.map((att, idx) => (
+                    {displayData.attachments.map((att, idx) => (
                       <div
                         key={idx}
                         style={{
@@ -377,17 +547,44 @@ export default function GradingPage({
                   </div>
 
                   {/* Image preview nếu là ảnh */}
-                  {current.attachments[0] &&
-                    (current.attachments[0].type?.includes('image') ||
-                      current.attachments[0].name?.match(/\.(png|jpe?g)$/i)) && (
+                  {displayData.attachments[0] &&
+                    (displayData.attachments[0].type?.includes('image') ||
+                      displayData.attachments[0].name?.match(/\.(png|jpe?g)$/i)) && (
                       <div style={{ marginTop: '14px', textAlign: 'center', background: '#fafbfa', padding: '10px', borderRadius: '8px', border: '1px solid #e3e8dc' }}>
                         <img
-                          src={getFileUrl(current.attachments[0].filePath, current.attachments[0].sampleUrl)}
+                          src={getFileUrl(displayData.attachments[0].filePath, displayData.attachments[0].sampleUrl)}
                           alt="Bài làm gốc"
-                          style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain', borderRadius: '4px' }}
+                          style={{ maxWidth: '100%', maxHeight: '450px', objectFit: 'contain', borderRadius: '4px' }}
                         />
                       </div>
                     )}
+                </div>
+              ) : (
+                /* Card tải ảnh trực tiếp khi học sinh chưa có bài */
+                <div
+                  className="card"
+                  style={{
+                    padding: '28px 20px',
+                    textAlign: 'center',
+                    border: '2px dashed #b5c7aa',
+                    background: '#fafbfa',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <div style={{ fontSize: '36px', marginBottom: '8px' }}>📷</div>
+                  <strong style={{ fontSize: '16px' }}>Học sinh này chưa có tệp bài làm gốc</strong>
+                  <p style={{ margin: '8px auto 14px auto', maxWidth: '500px', fontSize: '13px', color: '#687560' }}>
+                    Bấm vào đây để tải ảnh chụp bài làm (PNG, JPG, PDF) từ máy tính của bạn. AI sẽ tự động đọc chữ bằng OCR và đề xuất điểm ngay lập tức.
+                  </p>
+                  <button
+                    className="btn primary"
+                    disabled={uploadingDirect}
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                  >
+                    {uploadingDirect ? '⏳ Đang nạp tệp...' : '📤 Tải ảnh bài làm lên ngay'}
+                  </button>
                 </div>
               )}
 
@@ -402,7 +599,7 @@ export default function GradingPage({
                         className="btn compact outline"
                         style={{ fontSize: '12px', padding: '3px 9px' }}
                         onClick={() => {
-                          setEditedText(current.text || '');
+                          setEditedText(displayData.text || '');
                           setIsEditingText(true);
                         }}
                       >
@@ -465,9 +662,11 @@ export default function GradingPage({
                       color: '#2a3525',
                     }}
                   >
-                    {current.text || (
+                    {displayData.text ? (
+                      displayData.text
+                    ) : (
                       <div style={{ color: '#888', fontStyle: 'italic' }}>
-                        Chưa có nội dung bài làm. Bấm nút <b>"⚡ Chấm bài bằng AI"</b> ở góc trên hoặc <b>"✏️ Sửa văn bản bài làm"</b> để AI tiến hành đọc và chấm điểm.
+                        Chưa có nội dung bài làm. Bấm nút <b>"📤 Nạp bài ảnh mới"</b> ở trên hoặc <b>"✏️ Sửa văn bản bài làm"</b> để AI tiến hành đọc và chấm điểm.
                       </div>
                     )}
                   </div>
@@ -480,7 +679,7 @@ export default function GradingPage({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
                   {rubric.map((r, i) => {
                     const score = currentScores[i] ?? '—';
-                    const exp = current.explain?.[i] || '';
+                    const exp = displayData.explain?.[i] || '';
                     return (
                       <div
                         key={i}
@@ -507,11 +706,11 @@ export default function GradingPage({
               </div>
 
               {/* Gợi ý sửa lỗi chính tả / diễn đạt */}
-              {current.errors?.length > 0 && (
+              {displayData.errors?.length > 0 && (
                 <div className="card" style={{ padding: '18px' }}>
-                  <h4>Lỗi và gợi ý chữa ({current.errors.length} điểm cần lưu ý)</h4>
+                  <h4>Lỗi và gợi ý chữa ({displayData.errors.length} điểm cần lưu ý)</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-                    {current.errors.map((err, i) => (
+                    {displayData.errors.map((err, i) => (
                       <div
                         key={i}
                         style={{
@@ -540,9 +739,9 @@ export default function GradingPage({
                 </div>
               )}
 
-              {/* Nhận xét của giáo viên */}
+              {/* Nhận xét */}
               <div className="card" style={{ padding: '18px' }}>
-                <h4>Lời nhận xét &amp; Động viên</h4>
+                <h4>Lời nhận xét & Động viên</h4>
                 <div
                   style={{
                     background: '#f3f7ef',
@@ -554,7 +753,7 @@ export default function GradingPage({
                     lineHeight: '1.6',
                   }}
                 >
-                  {current.teacherFeedback || current.feedback || 'Chưa có lời nhận xét.'}
+                  {displayData.teacherFeedback || displayData.feedback || 'Chưa có lời nhận xét.'}
                 </div>
               </div>
             </div>
@@ -567,24 +766,24 @@ export default function GradingPage({
                 <h4>Hồ sơ năng lực học tập</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '14px' }}>
                   <div style={{ background: '#f5faf2', padding: '14px', borderRadius: '8px', border: '1px solid #d4e6cd' }}>
-                    <h5 style={{ color: '#2d6325', marginBottom: '6px' }}>✓ Điểm mạnh &amp; Nét riêng</h5>
-                    <p>{current.strength || 'Chưa ghi nhận'}</p>
-                    {current.evidence && (
+                    <h5 style={{ color: '#2d6325', marginBottom: '6px' }}>✓ Điểm mạnh & Nét riêng</h5>
+                    <p>{displayData.strength || 'Chưa ghi nhận'}</p>
+                    {displayData.evidence && (
                       <div style={{ fontSize: '13px', color: '#556850', marginTop: '8px' }}>
-                        <b>Dẫn chứng trong bài:</b> {current.evidence}
+                        <b>Dẫn chứng trong bài:</b> {displayData.evidence}
                       </div>
                     )}
                   </div>
 
                   <div style={{ background: '#fff9f0', padding: '14px', borderRadius: '8px', border: '1px solid #f2dfc2' }}>
                     <h5 style={{ color: '#8a5c1b', marginBottom: '6px' }}>▲ Nội dung cần hỗ trợ</h5>
-                    <p>{current.support || 'Chưa ghi nhận'}</p>
+                    <p>{displayData.support || 'Chưa ghi nhận'}</p>
                   </div>
                 </div>
 
                 <div style={{ marginTop: '16px', background: '#f4f6fa', padding: '14px', borderRadius: '8px', border: '1px solid #d9e1ee' }}>
                   <h5 style={{ color: '#2a4c82', marginBottom: '6px' }}>➔ Hoạt động rèn luyện tiếp theo</h5>
-                  <p>{current.activity || 'Tiếp tục luyện tập viết đoạn văn theo chủ đề'}</p>
+                  <p>{displayData.activity || 'Tiếp tục luyện tập viết đoạn văn theo chủ đề'}</p>
                 </div>
               </div>
             </div>
@@ -594,14 +793,14 @@ export default function GradingPage({
           {activeTab === 'logs' && (
             <div className="tab-content">
               <div className="card" style={{ padding: '18px' }}>
-                <h4>Lịch sử chỉnh sửa &amp; Phê duyệt</h4>
+                <h4>Lịch sử chỉnh sửa & Phê duyệt</h4>
                 <div style={{ marginTop: '12px' }}>
-                  {(!current.logs || current.logs.length === 0) ? (
+                  {(!displayData.logs || displayData.logs.length === 0) ? (
                     <div style={{ color: '#7a8670', fontStyle: 'italic', padding: '10px' }}>
                       Chưa có lịch sử chỉnh sửa nào được ghi nhận.
                     </div>
                   ) : (
-                    current.logs.map((log, idx) => (
+                    displayData.logs.map((log, idx) => (
                       <div
                         key={idx}
                         style={{
@@ -612,7 +811,7 @@ export default function GradingPage({
                         }}
                       >
                         <div>
-                          <strong>{log.action === 'approved' ? '☑ Giáo viên đã duyệt kết quả' : '✎ Chỉnh sửa điểm'}</strong>
+                          <strong>{log.action === 'approved' ? '☑ Giáo viên đã duyệt kết quả' : log.action === 'ocr_failed' ? '⚠ OCR không đọc được' : '✎ Chỉnh sửa điểm'}</strong>
                           <div style={{ fontSize: '13px', color: '#687560' }}>
                             {log.reason || 'Không ghi chú'}
                           </div>

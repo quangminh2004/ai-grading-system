@@ -22,6 +22,7 @@ export default function IntakePage({
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [mapping, setMapping] = useState({}); // { [filename]: studentId }
   const [uploading, setUploading] = useState(false);
+  const [globalAssignStudentId, setGlobalAssignStudentId] = useState('');
 
   // So khớp tên tệp với danh sách học sinh
   const matchFile = (filename) => {
@@ -63,8 +64,27 @@ export default function IntakePage({
     }));
   };
 
+  // Gán tất cả các tệp hiện tại cho một học sinh
+  const handleAssignAllToStudent = (studentId) => {
+    setGlobalAssignStudentId(studentId);
+    if (!studentId) return;
+    const newMapping = {};
+    selectedFiles.forEach((f) => {
+      newMapping[f.name] = studentId;
+    });
+    setMapping(newMapping);
+  };
+
   const handleUpload = async () => {
     if (!selectedFiles.length) return;
+
+    // Kiểm tra xem có tệp nào chưa được ghép học sinh không
+    const unmapped = selectedFiles.filter((f) => !mapping[f.name]);
+    if (unmapped.length > 0) {
+      alert(`⚠️ Có ${unmapped.length} tệp chưa được gán cho học sinh nào!\nVui lòng chọn học sinh tương ứng ở ô chọn (hoặc dùng mục "Gán tất cả tệp cho một học sinh") trước khi bấm tiếp nhận.`);
+      return;
+    }
+
     setUploading(true);
 
     const formData = new FormData();
@@ -77,6 +97,7 @@ export default function IntakePage({
       await onUploadBatch(formData);
       setSelectedFiles([]);
       setMapping({});
+      setGlobalAssignStudentId('');
     } finally {
       setUploading(false);
     }
@@ -101,7 +122,7 @@ export default function IntakePage({
         <div className="card" style={{ padding: '24px' }}>
           <h3>Tải tệp bài làm lên hệ thống</h3>
           <p style={{ color: '#687560', fontSize: '14px', marginBottom: '18px' }}>
-            Hỗ trợ định dạng <b>PDF, PNG, JPG/JPEG</b>. Hệ thống tự đối chiếu tên tệp với danh sách học sinh của lớp.
+            Hỗ trợ định dạng <b>PDF, PNG, JPG/JPEG</b> từ bất kỳ thư mục nào trên máy. Hệ thống tự đối chiếu tên tệp hoặc thầy cô tự ghép với học sinh trong danh sách.
           </p>
 
           <div
@@ -117,9 +138,9 @@ export default function IntakePage({
             onClick={() => document.getElementById('fileInput').click()}
           >
             <div style={{ fontSize: '32px', marginBottom: '8px' }}>📁</div>
-            <strong>Kéo thả tệp vào đây hoặc nhấn để chọn từ máy</strong>
+            <strong>Kéo thả tệp vào đây hoặc nhấn để chọn ảnh bài làm</strong>
             <div style={{ fontSize: '13px', color: '#7a8670', marginTop: '6px' }}>
-              Tối đa 20 tệp/lượt · Dung lượng tối đa 25MB/tệp
+              Tối đa 20 tệp/lượt · Dung lượng tối đa 25MB/tệp · Hỗ trợ tải từ mọi thư mục
             </div>
             <input
               id="fileInput"
@@ -133,50 +154,100 @@ export default function IntakePage({
 
           {selectedFiles.length > 0 && (
             <div>
-              <h4>Danh sách tệp chờ tiếp nhận ({selectedFiles.length} tệp)</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-                {selectedFiles.map((file, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      background: '#f3f6ee',
-                      border: '1px solid #dce4d5',
-                    }}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                <h4 style={{ margin: 0 }}>Danh sách tệp chờ tiếp nhận ({selectedFiles.length} tệp)</h4>
+                
+                {/* Chọn nhanh: Gán tất cả tệp cho một học sinh */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                  <span>Gán tất cả cho:</span>
+                  <select
+                    value={globalAssignStudentId}
+                    onChange={(e) => handleAssignAllToStudent(e.target.value)}
+                    style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #3d6333', fontSize: '12px' }}
                   >
-                    <div>
-                      <strong>{file.name}</strong>
-                      <div style={{ fontSize: '12px', color: '#7a8670' }}>
-                        {(file.size / 1024).toFixed(1)} KB
+                    <option value="">-- Chọn để gán tất cả --</option>
+                    {students.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                {selectedFiles.map((file, idx) => {
+                  const currentMappedId = mapping[file.name] || '';
+                  const isUnmapped = !currentMappedId;
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        background: isUnmapped ? '#fff9f5' : '#f3f6ee',
+                        border: isUnmapped ? '1px solid #f29f8f' : '1px solid #dce4d5',
+                      }}
+                    >
+                      <div>
+                        <strong>{file.name}</strong>
+                        <div style={{ fontSize: '12px', color: '#7a8670' }}>
+                          {(file.size / 1024).toFixed(1)} KB
+                          {isUnmapped && (
+                            <span style={{ color: '#d9534f', marginLeft: '8px', fontWeight: 'bold' }}>
+                              ⚠️ Chưa chọn học sinh
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '13px' }}>Học sinh:</span>
+                        <select
+                          value={currentMappedId}
+                          onChange={(e) => handleSelectStudentForFile(file.name, e.target.value)}
+                          style={{
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            border: isUnmapped ? '2px solid #d9534f' : '1px solid #9bbd92',
+                            background: isUnmapped ? '#fff' : '#fafff8',
+                            fontWeight: isUnmapped ? 'normal' : '550',
+                          }}
+                        >
+                          <option value="">-- Chọn học sinh --</option>
+                          {students.map((s) => {
+                            const subCount = s.allSubmissions?.length || (s.attachments?.length ? 1 : 0);
+                            return (
+                              <option key={s.id} value={s.id}>
+                                {s.name} ({s.id}){subCount > 0 ? ` [Đã có ${subCount} bài]` : ''}
+                              </option>
+                            );
+                          })}
+                        </select>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '13px' }}>Ghép vào HS:</span>
-                      <select
-                        value={mapping[file.name] || ''}
-                        onChange={(e) => handleSelectStudentForFile(file.name, e.target.value)}
-                        style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #ccc' }}
-                      >
-                        <option value="">-- Chọn học sinh --</option>
-                        {students.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name} ({s.id})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                ))}
+              <div style={{
+                marginTop: '14px',
+                padding: '10px 14px',
+                background: '#f4f9f1',
+                border: '1px solid #c2dec0',
+                borderRadius: '8px',
+                fontSize: '13px',
+                color: '#2d5a22',
+              }}>
+                💡 <strong>Mỗi lần nộp sẽ lưu thành một bài làm riêng:</strong> Học sinh có thể có nhiều bài nộp (bài nộp lại lần 2, lần 3...). Hệ thống sẽ lưu giữ đầy đủ lịch sử tất cả các bài làm để thầy cô xem và đối chiếu.
               </div>
 
               <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '13px', color: '#556550' }}>
-                  ⚡ Sau khi tải lên, AI sẽ tự động đọc tệp, phân tích và đề xuất điểm ngay lập tức.
+                  ⚡ Sau khi tải lên, AI sẽ tự động đọc tệp bằng OCR, phân tích ngôn ngữ và đề xuất điểm ngay lập tức.
                 </span>
                 <button
                   className="btn primary"
@@ -197,9 +268,9 @@ export default function IntakePage({
             <div style={{ display: 'flex', gap: '12px' }}>
               <span className="avatar small" style={{ background: '#3d6333', color: '#fff' }}>1</span>
               <div>
-                <strong>Đặt tên tệp theo quy ước</strong>
+                <strong>Chọn tệp ảnh bài làm từ bất kỳ đâu</strong>
                 <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#556550' }}>
-                  Ví dụ: <code>Nguyen Minh An.jpg</code> hoặc <code>HS01_Nguyen Minh An.pdf</code>
+                  Ảnh chụp từ điện thoại, máy ảnh hoặc tệp PDF đều được hỗ trợ. Không bắt buộc phải đặt tên cố định.
                 </p>
               </div>
             </div>
@@ -207,9 +278,9 @@ export default function IntakePage({
             <div style={{ display: 'flex', gap: '12px' }}>
               <span className="avatar small" style={{ background: '#3d6333', color: '#fff' }}>2</span>
               <div>
-                <strong>Tự động nhận diện &amp; So khớp</strong>
+                <strong>Tự động nhận diện hoặc chọn học sinh</strong>
                 <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#556550' }}>
-                  Hệ thống chuẩn hóa không dấu và tự tìm học sinh tương ứng trong danh sách lớp.
+                  Hệ thống tự đối chiếu nếu tên tệp có chứa tên/mã học sinh. Nếu tên tệp ngẫu nhiên (ảnh chụp), thầy cô chỉ cần chọn học sinh từ danh sách thả xuống.
                 </p>
               </div>
             </div>
@@ -217,9 +288,19 @@ export default function IntakePage({
             <div style={{ display: 'flex', gap: '12px' }}>
               <span className="avatar small" style={{ background: '#3d6333', color: '#fff' }}>3</span>
               <div>
-                <strong>Chấm &amp; Phê duyệt</strong>
+                <strong>Nhiều bài nộp cho cùng một học sinh</strong>
                 <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#556550' }}>
-                  Sau khi tiếp nhận, chuyển qua màn hình "Chấm, chữa bài" để xem bài gốc, chỉnh điểm và xác nhận kết quả.
+                  Một học sinh có thể nộp nhiều lần (bài 1, bài làm lại...). Mỗi bài được AI chấm riêng và thầy cô có thể chuyển qua lại giữa các bài để so sánh.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <span className="avatar small" style={{ background: '#3d6333', color: '#fff' }}>4</span>
+              <div>
+                <strong>Nạp bài trực tiếp tại trang Chấm, chữa bài</strong>
+                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#556550' }}>
+                  Thầy cô cũng có thể vào thẳng mục "Chấm, chữa bài", chọn học sinh và nhấn nút <b>"📤 Nạp bài ảnh mới"</b> để tải ảnh bài làm lên cho riêng em đó mà không cần vào trang này.
                 </p>
               </div>
             </div>

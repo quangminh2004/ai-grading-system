@@ -86,7 +86,7 @@ export const deleteClass = async (req, res) => {
 };
 
 // GET /api/classes/:classId/full
-// Returns class info + all students with their active submissions merged
+// Returns class info + all students with their submissions (nhiều bài mỗi học sinh)
 export const getClassDetails = async (req, res) => {
   try {
     const { classId } = req.params;
@@ -96,33 +96,63 @@ export const getClassDetails = async (req, res) => {
     }
 
     const students = await Student.find({ classId }).sort({ studentId: 1 }).lean();
-    const submissions = await Submission.find({ classId }).lean();
+    // Lấy TẤT CẢ submissions của lớp, sắp xếp theo submissionNumber tăng dần
+    const allSubmissions = await Submission.find({ classId }).sort({ submissionNumber: 1 }).lean();
 
-    // Map submission to each student for clean frontend state
+    // Gộp submissions vào từng học sinh — mỗi học sinh có mảng submissions[]
     const mergedStudents = students.map((std) => {
-      const sub = submissions.find((s) => s.studentId === std.studentId) || {};
+      const subs = allSubmissions.filter((s) => s.studentId === std.studentId);
+
+      // Bài "đang hoạt động" = bài approved mới nhất, hoặc bài suggested mới nhất, hoặc bài cuối
+      const activeSub = subs.find((s) => s.state === 'approved')
+        || subs.find((s) => s.state === 'suggested')
+        || subs[subs.length - 1]
+        || {};
+
       return {
         id: std.studentId,
         studentMongoId: std._id,
         name: std.name,
-        submissionId: sub._id,
-        state: sub.state || 'new',
-        text: sub.text || '',
-        scores: sub.scores || [],
-        explain: sub.explain || [],
-        errors: sub.errors || [],
-        strength: sub.strength || '',
-        evidence: sub.evidence || '',
-        support: sub.support || '',
-        activity: sub.activity || '',
-        feedback: sub.feedback || '',
-        teacherScores: sub.teacherScores || null,
-        teacherFeedback: sub.teacherFeedback || '',
-        reason: sub.reason || '',
-        attachments: sub.attachments || [],
-        logs: sub.logs || [],
-        sample: sub.sample || false,
-        custom: sub.custom !== undefined ? sub.custom : true,
+        // Dữ liệu từ bài active (để tương thích giao diện cũ)
+        submissionId: activeSub._id,
+        state: activeSub.state || 'new',
+        text: activeSub.text || '',
+        scores: activeSub.scores || [],
+        explain: activeSub.explain || [],
+        errors: activeSub.errors || [],
+        strength: activeSub.strength || '',
+        evidence: activeSub.evidence || '',
+        support: activeSub.support || '',
+        activity: activeSub.activity || '',
+        feedback: activeSub.feedback || '',
+        teacherScores: activeSub.teacherScores || null,
+        teacherFeedback: activeSub.teacherFeedback || '',
+        reason: activeSub.reason || '',
+        attachments: activeSub.attachments || [],
+        logs: activeSub.logs || [],
+        sample: activeSub.sample || false,
+        custom: activeSub.custom !== undefined ? activeSub.custom : true,
+        // Mảng TẤT CẢ bài nộp của học sinh này
+        allSubmissions: subs.map((s) => ({
+          _id: s._id,
+          submissionNumber: s.submissionNumber || 1,
+          submissionLabel: s.submissionLabel || `Bài nộp ${s.submissionNumber || 1}`,
+          state: s.state,
+          scores: s.scores || [],
+          teacherScores: s.teacherScores || null,
+          text: s.text || '',
+          attachments: s.attachments || [],
+          logs: s.logs || [],
+          createdAt: s.createdAt,
+          explain: s.explain || [],
+          errors: s.errors || [],
+          strength: s.strength || '',
+          evidence: s.evidence || '',
+          support: s.support || '',
+          activity: s.activity || '',
+          feedback: s.feedback || '',
+          teacherFeedback: s.teacherFeedback || '',
+        })),
       };
     });
 
