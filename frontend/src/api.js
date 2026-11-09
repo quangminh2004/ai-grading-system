@@ -258,11 +258,37 @@ export const api = {
     return res.json();
   },
 
-  gradeWithAI: async (classId, studentId, text, submissionId) => {
+  addAttachments: async (classId, studentId, submissionId, formData) => {
+    const token = getToken();
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    if (submissionId) {
+      formData.append('submissionId', submissionId);
+    }
+
+    const res = await fetch(`${API_BASE}/classes/${classId}/submissions/${studentId}/attachments`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    return res.json();
+  },
+
+  deleteAttachment: async (classId, studentId, submissionId, attachmentKey, filePath) => {
+    const res = await fetch(`${API_BASE}/classes/${classId}/submissions/${studentId}/attachments`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+      body: JSON.stringify({ submissionId, attachmentKey, filePath }),
+    });
+    return res.json();
+  },
+
+  gradeWithAI: async (classId, studentId, text, submissionId, forceReOcr = false) => {
     const res = await fetch(`${API_BASE}/classes/${classId}/submissions/${studentId}/grade-ai`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ text, submissionId }),
+      body: JSON.stringify({ text, submissionId, forceReOcr }),
     });
     return res.json();
   },
@@ -270,6 +296,39 @@ export const api = {
   gradeAllWithAI: async (classId) => {
     const res = await fetch(`${API_BASE}/classes/${classId}/submissions/grade-all-ai`, {
       method: 'POST',
+      headers: authHeaders(),
+    });
+    return res.json();
+  },
+
+  retrySubmission: async (classId, studentId, submissionId) => {
+    const res = await fetch(`${API_BASE}/classes/${classId}/submissions/${studentId}/retry`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ submissionId }),
+    });
+    return res.json();
+  },
+
+  retryAllFailed: async (classId) => {
+    const res = await fetch(`${API_BASE}/classes/${classId}/submissions/retry-failed`, {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+    return res.json();
+  },
+
+  deleteSubmission: async (classId, studentId, submissionId) => {
+    const res = await fetch(`${API_BASE}/classes/${classId}/submissions/${studentId}/${submissionId}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    return res.json();
+  },
+
+  getAiProvidersStatus: async () => {
+    const res = await fetch(`${API_BASE}/ai/providers-status`, {
+      method: 'GET',
       headers: authHeaders(),
     });
     return res.json();

@@ -22,6 +22,18 @@ const logSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const errorDetailsSchema = new mongoose.Schema(
+  {
+    provider: { type: String }, // 'OpenAI' | 'Gemini' | 'Tesseract' | 'System'
+    model: { type: String },
+    httpStatus: { type: Number },
+    errorCode: { type: String },
+    errorMessage: { type: String }, // Đã loại bỏ thông tin nhạy cảm
+    timestamp: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const submissionSchema = new mongoose.Schema(
   {
     studentId: {
@@ -50,8 +62,26 @@ const submissionSchema = new mongoose.Schema(
     },
     state: {
       type: String,
-      enum: ['new', 'suggested', 'approved'],
+      enum: [
+        'new',
+        'pending',
+        'processing',
+        'completed',
+        'suggested',
+        'approved',
+        'needs_review',
+        'provider_unavailable',
+        'failed',
+      ],
       default: 'new',
+    },
+    errorDetails: {
+      type: errorDetailsSchema,
+      default: null,
+    },
+    ocrConfidence: {
+      type: Number,
+      default: null,
     },
     text: {
       type: String,

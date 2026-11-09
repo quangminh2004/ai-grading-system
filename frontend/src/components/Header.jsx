@@ -36,7 +36,7 @@ export default function Header({
 
         {currentUser?.school && (
           <span className="school-pill" title={`Đơn vị: ${currentUser.school}`}>
-            🏫 {currentUser.school}
+            {currentUser.school}
           </span>
         )}
       </div>
@@ -70,10 +70,6 @@ export default function Header({
           </>
         )}
 
-        <span className="demo-pill" title="Hệ thống đang kết nối trực tuyến">
-          <i></i> Trực tuyến
-        </span>
-
         {/* User Profile & Menu */}
         <div className="user-profile-menu-container">
           <button
@@ -83,7 +79,7 @@ export default function Header({
             title="Tùy chọn tài khoản"
           >
             <span className={`avatar small ${isAdmin ? 'peach' : ''}`}>
-              {isAdmin ? '👑' : 'GV'}
+              {isAdmin ? 'AD' : 'GV'}
             </span>
             <div className="user-meta-header">
               <span className="user-fullname">{currentUser?.fullName || 'Người dùng'}</span>
@@ -111,7 +107,7 @@ export default function Header({
                   onChangePasswordClick();
                 }}
               >
-                🔑 Đổi mật khẩu
+                Đổi mật khẩu
               </button>
               <button
                 type="button"
@@ -122,7 +118,7 @@ export default function Header({
                   onLogout();
                 }}
               >
-                🚪 Đăng xuất
+                Đăng xuất
               </button>
             </div>
           )}

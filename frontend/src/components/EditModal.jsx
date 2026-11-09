@@ -198,7 +198,7 @@ export default function EditModal({ student, onClose, onSave }) {
             onClick={() => handleSubmit('approved')}
             title="Xác nhận giáo viên đã duyệt bài này"
           >
-            ✓ Lưu &amp; Xác nhận Duyệt
+            Lưu &amp; Xác nhận Duyệt
           </button>
         </div>
       </div>

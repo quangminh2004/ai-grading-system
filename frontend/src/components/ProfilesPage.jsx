@@ -9,7 +9,7 @@ export default function ProfilesPage({ classroom, students }) {
       <div className="pagehead">
         <div>
           <div className="eyebrow">
-            TRỢ LÝ CHẤM CHỮA BÀI · {classroom?.school?.toUpperCase() || 'HỆ THỐNG ĐA TRƯỜNG'}
+            TRỢ LÝ CHẤM CHỮA BÀI · HỒ SƠ NĂNG LỰC
           </div>
           <h1>Hồ sơ học tập theo từng học sinh</h1>
           <p className="sub">
@@ -58,7 +58,7 @@ export default function ProfilesPage({ classroom, students }) {
 
               <div className="profile-strengths-grid">
                 <div style={{ background: '#f5faf2', padding: '16px', borderRadius: '8px', border: '1px solid #d4e6cd' }}>
-                  <h4 style={{ color: '#2d6325', marginBottom: '8px' }}>✓ Điểm mạnh ghi nhận</h4>
+                  <h4 style={{ color: '#2d6325', marginBottom: '8px' }}>Điểm mạnh ghi nhận</h4>
                   <p style={{ lineHeight: '1.6' }}>{activeStudent.strength || 'Chưa có dữ liệu bài làm'}</p>
                   {activeStudent.evidence && (
                     <div style={{ marginTop: '12px', fontSize: '13px', color: '#4d6148', background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e2ebd9' }}>
@@ -68,13 +68,13 @@ export default function ProfilesPage({ classroom, students }) {
                 </div>
 
                 <div style={{ background: '#fff9f0', padding: '16px', borderRadius: '8px', border: '1px solid #f2dfc2' }}>
-                  <h4 style={{ color: '#8a5c1b', marginBottom: '8px' }}>▲ Nội dung cần hỗ trợ rèn luyện</h4>
+                  <h4 style={{ color: '#8a5c1b', marginBottom: '8px' }}>Nội dung cần hỗ trợ rèn luyện</h4>
                   <p style={{ lineHeight: '1.6' }}>{activeStudent.support || 'Chưa có ghi nhận'}</p>
                 </div>
               </div>
 
               <div style={{ marginTop: '16px', background: '#f4f6fa', padding: '16px', borderRadius: '8px', border: '1px solid #d9e1ee' }}>
-                <h4 style={{ color: '#2a4c82', marginBottom: '8px' }}>➔ Hoạt động tiếp theo</h4>
+                <h4 style={{ color: '#2a4c82', marginBottom: '8px' }}>Hoạt động tiếp theo</h4>
                 <p style={{ lineHeight: '1.6' }}>{activeStudent.activity || 'Tiếp tục theo dõi và luyện tập theo chương trình'}</p>
               </div>
 

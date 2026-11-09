@@ -33,7 +33,7 @@ export default function RosterPage({
       <div className="pagehead">
         <div>
           <div className="eyebrow">
-            TRỢ LÝ CHẤM CHỮA BÀI · {classroom?.school?.toUpperCase() || 'HỆ THỐNG ĐA TRƯỜNG'}
+            TRỢ LÝ CHẤM CHỮA BÀI · DANH SÁCH LỚP HỌC
           </div>
           <h1>Danh sách học sinh · {classroom?.label}</h1>
           <p className="sub">
@@ -141,7 +141,7 @@ export default function RosterPage({
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
               <button type="submit" className="btn primary">
-                ✓ Thêm học sinh
+                Thêm học sinh
               </button>
               <button type="button" className="btn outline" onClick={() => setTab('list')}>
                 Hủy

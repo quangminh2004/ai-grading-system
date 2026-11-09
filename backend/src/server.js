@@ -11,10 +11,10 @@ import apiRouter from './routes/api.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Tải cấu hình từ .env từ nhiều vị trí khả dĩ để đảm bảo tương thích khi deploy
-dotenv.config();
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Tải cấu hình từ .env: ưu tiên backend/.env trước rồi đến root .env
+dotenv.config({ path: path.resolve(__dirname, '../.env'), override: true });
+dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: false });
+dotenv.config({ override: false });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -84,10 +84,10 @@ const startServer = async () => {
   try {
     await connectDB();
     await ensureRootAdmin();
-    const server = app.listen(PORT, () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`====================================================`);
       console.log(`🚀 HỆ THỐNG TRỢ LÝ CHẤM CHỮA BÀI AI`);
-      console.log(`🌐 Web App & API: http://localhost:${PORT}`);
+      console.log(`🌐 Web App & API: http://0.0.0.0:${PORT}`);
       console.log(`📡 Cơ sở dữ liệu: Đã kết nối trực tuyến`);
       console.log(`🔗 API Endpoint: http://localhost:${PORT}/api`);
       console.log(`👑 Đăng nhập Admin: admin / admin@123`);

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ImageEditorModal from './ImageEditorModal';
 
 // Chuẩn hóa tên để đối chiếu
 function normalize(value) {
@@ -23,6 +24,10 @@ export default function IntakePage({
   const [mapping, setMapping] = useState({}); // { [filename]: studentId }
   const [uploading, setUploading] = useState(false);
   const [globalAssignStudentId, setGlobalAssignStudentId] = useState('');
+
+  // Quản lý Modal Cắt & Xoay ảnh 360 độ
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingIndex, setEditingIndex] = useState(null); // null = tất cả, number = file cụ thể
 
   // So khớp tên tệp với danh sách học sinh
   const matchFile = (filename) => {
@@ -55,6 +60,49 @@ export default function IntakePage({
       newMapping[f.name] = matchFile(f.name);
     });
     setMapping(newMapping);
+
+    // Nếu có tệp ảnh -> Tự động mở Modal Cắt & Xoay để giáo viên căn chỉnh ngay
+    const hasImages = files.some((f) => f.type.startsWith('image/'));
+    if (hasImages) {
+      setEditingIndex(null);
+      setEditorOpen(true);
+    }
+  };
+
+  const handleEditorComplete = (processedList) => {
+    if (editingIndex !== null) {
+      // Cắt 1 file cụ thể
+      const updatedFile = processedList[0];
+      const oldFile = selectedFiles[editingIndex];
+      const nextFiles = [...selectedFiles];
+      nextFiles[editingIndex] = updatedFile;
+      setSelectedFiles(nextFiles);
+
+      // Chuyển mapping sang tên file mới
+      if (oldFile && updatedFile && oldFile.name !== updatedFile.name) {
+        setMapping((prev) => {
+          const next = { ...prev };
+          const studentId = next[oldFile.name];
+          delete next[oldFile.name];
+          next[updatedFile.name] = studentId;
+          return next;
+        });
+      }
+    } else {
+      // Cắt danh sách nhiều file
+      setSelectedFiles(processedList);
+      setMapping((prev) => {
+        const next = {};
+        processedList.forEach((newFile, i) => {
+          const origFile = selectedFiles[i];
+          const studentId = (origFile && prev[origFile.name]) || matchFile(newFile.name);
+          next[newFile.name] = studentId;
+        });
+        return next;
+      });
+    }
+    setEditorOpen(false);
+    setEditingIndex(null);
   };
 
   const handleSelectStudentForFile = (filename, studentId) => {
@@ -81,7 +129,7 @@ export default function IntakePage({
     // Kiểm tra xem có tệp nào chưa được ghép học sinh không
     const unmapped = selectedFiles.filter((f) => !mapping[f.name]);
     if (unmapped.length > 0) {
-      alert(`⚠️ Có ${unmapped.length} tệp chưa được gán cho học sinh nào!\nVui lòng chọn học sinh tương ứng ở ô chọn (hoặc dùng mục "Gán tất cả tệp cho một học sinh") trước khi bấm tiếp nhận.`);
+      alert(`Có ${unmapped.length} tệp chưa được gán cho học sinh nào!\nVui lòng chọn học sinh tương ứng ở ô chọn (hoặc dùng mục "Gán tất cả tệp cho một học sinh") trước khi bấm tiếp nhận.`);
       return;
     }
 
@@ -108,7 +156,7 @@ export default function IntakePage({
       <div className="pagehead">
         <div>
           <div className="eyebrow">
-            TRỢ LÝ CHẤM CHỮA BÀI · {classroom?.school?.toUpperCase() || 'HỆ THỐNG ĐA TRƯỜNG'}
+            TRỢ LÝ CHẤM CHỮA BÀI · TIẾP NHẬN BÀI LÀM
           </div>
           <h1>Nhận bài &amp; Chấm AI</h1>
           <p className="sub">
@@ -137,7 +185,6 @@ export default function IntakePage({
             }}
             onClick={() => document.getElementById('fileInput').click()}
           >
-            <div style={{ fontSize: '32px', marginBottom: '8px' }}>📁</div>
             <strong>Kéo thả tệp vào đây hoặc nhấn để chọn ảnh bài làm</strong>
             <div style={{ fontSize: '13px', color: '#7a8670', marginTop: '6px' }}>
               Tối đa 20 tệp/lượt · Dung lượng tối đa 25MB/tệp · Hỗ trợ tải từ mọi thư mục
@@ -157,21 +204,47 @@ export default function IntakePage({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
                 <h4 style={{ margin: 0 }}>Danh sách tệp chờ tiếp nhận ({selectedFiles.length} tệp)</h4>
                 
-                {/* Chọn nhanh: Gán tất cả tệp cho một học sinh */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
-                  <span>Gán tất cả cho:</span>
-                  <select
-                    value={globalAssignStudentId}
-                    onChange={(e) => handleAssignAllToStudent(e.target.value)}
-                    style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #3d6333', fontSize: '12px' }}
+                {/* Nút cắt & xoay ảnh và Chọn nhanh: Gán tất cả tệp cho một học sinh */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn outline"
+                    onClick={() => {
+                      setEditingIndex(null);
+                      setEditorOpen(true);
+                    }}
+                    style={{
+                      padding: '5px 12px',
+                      fontSize: '12.5px',
+                      borderRadius: '6px',
+                      color: '#15803d',
+                      borderColor: '#86efac',
+                      background: '#f0fdf4',
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                    title="Mở trình cắt ảnh và xoay 360 độ cho các ảnh đã chọn"
                   >
-                    <option value="">-- Chọn để gán tất cả --</option>
-                    {students.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.id})
-                      </option>
-                    ))}
-                  </select>
+                    <span>Cắt &amp; Xoay ảnh</span>
+                  </button>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                    <span>Gán tất cả cho:</span>
+                    <select
+                      value={globalAssignStudentId}
+                      onChange={(e) => handleAssignAllToStudent(e.target.value)}
+                      style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #3d6333', fontSize: '12px' }}
+                    >
+                      <option value="">-- Chọn để gán tất cả --</option>
+                      {students.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.id})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -198,13 +271,38 @@ export default function IntakePage({
                           {(file.size / 1024).toFixed(1)} KB
                           {isUnmapped && (
                             <span style={{ color: '#d9534f', marginLeft: '8px', fontWeight: 'bold' }}>
-                              ⚠️ Chưa chọn học sinh
+                              Chưa chọn học sinh
                             </span>
                           )}
                         </div>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {file.type && file.type.startsWith('image/') && (
+                          <button
+                            type="button"
+                            className="btn outline"
+                            onClick={() => {
+                              setEditingIndex(idx);
+                              setEditorOpen(true);
+                            }}
+                            style={{
+                              padding: '5px 10px',
+                              fontSize: '12px',
+                              borderRadius: '6px',
+                              color: '#15803d',
+                              borderColor: '#86efac',
+                              background: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                            title="Cắt lấy vùng bài viết và xoay ảnh 360 độ"
+                          >
+                            <span>Cắt &amp; Xoay</span>
+                          </button>
+                        )}
+
                         <span style={{ fontSize: '13px' }}>Học sinh:</span>
                         <select
                           value={currentMappedId}
@@ -242,19 +340,19 @@ export default function IntakePage({
                 fontSize: '13px',
                 color: '#2d5a22',
               }}>
-                💡 <strong>Mỗi lần nộp sẽ lưu thành một bài làm riêng:</strong> Học sinh có thể có nhiều bài nộp (bài nộp lại lần 2, lần 3...). Hệ thống sẽ lưu giữ đầy đủ lịch sử tất cả các bài làm để thầy cô xem và đối chiếu.
+                <strong>Mỗi lần nộp sẽ lưu thành một bài làm riêng:</strong> Học sinh có thể có nhiều bài nộp (bài nộp lại lần 2, lần 3...). Hệ thống sẽ lưu giữ đầy đủ lịch sử tất cả các bài làm để thầy cô xem và đối chiếu.
               </div>
 
               <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '13px', color: '#556550' }}>
-                  ⚡ Sau khi tải lên, AI sẽ tự động đọc tệp bằng OCR, phân tích ngôn ngữ và đề xuất điểm ngay lập tức.
+                  Sau khi tải lên, AI sẽ tự động đọc tệp bằng OCR, phân tích ngôn ngữ và đề xuất điểm ngay lập tức.
                 </span>
                 <button
                   className="btn primary"
                   disabled={uploading}
                   onClick={handleUpload}
                 >
-                  {uploading ? '⏳ Đang tiếp nhận & AI đang chấm...' : '🚀 Tiếp nhận & AI Chấm ngay'}
+                  {uploading ? 'Đang tiếp nhận & AI đang chấm...' : 'Tiếp nhận & AI Chấm ngay'}
                 </button>
               </div>
             </div>
@@ -300,13 +398,33 @@ export default function IntakePage({
               <div>
                 <strong>Nạp bài trực tiếp tại trang Chấm, chữa bài</strong>
                 <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#556550' }}>
-                  Thầy cô cũng có thể vào thẳng mục "Chấm, chữa bài", chọn học sinh và nhấn nút <b>"📤 Nạp bài ảnh mới"</b> để tải ảnh bài làm lên cho riêng em đó mà không cần vào trang này.
+                  Thầy cô cũng có thể vào thẳng mục "Chấm, chữa bài", chọn học sinh và nhấn nút <b>"Tải bài mới"</b> để tải ảnh bài làm lên cho riêng em đó mà không cần vào trang này.
                 </p>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* TRÌNH CẮT ẢNH & XOAY ẢNH 360 ĐỘ */}
+      <ImageEditorModal
+        isOpen={editorOpen}
+        files={
+          editingIndex !== null
+            ? [selectedFiles[editingIndex]].filter(Boolean)
+            : selectedFiles.filter((f) => f.type && f.type.startsWith('image/'))
+        }
+        studentName={
+          editingIndex !== null && mapping[selectedFiles[editingIndex]?.name]
+            ? students.find((s) => s.id === mapping[selectedFiles[editingIndex]?.name])?.name
+            : ''
+        }
+        onClose={() => {
+          setEditorOpen(false);
+          setEditingIndex(null);
+        }}
+        onComplete={handleEditorComplete}
+      />
     </div>
   );
 }

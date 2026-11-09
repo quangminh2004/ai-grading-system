@@ -1,7 +1,11 @@
+import fs from 'fs';
+import path from 'path';
+import mongoose from 'mongoose';
 import { Submission } from '../models/Submission.js';
 import { Assignment } from '../models/Assignment.js';
 import { Student } from '../models/Student.js';
 import { autoGradeSubmission } from '../services/aiGradingService.js';
+import { aiProviderTracker } from '../services/aiErrorHandler.js';
 
 // GET /api/assignment
 export const getAssignment = async (req, res) => {
@@ -38,10 +42,11 @@ export const reviewSubmission = async (req, res) => {
     } = req.body;
 
     // Nếu có submissionId cụ thể thì duyệt bài đó, không thì lấy bài mới nhất
-    let sub;
-    if (submissionId) {
+    let sub = null;
+    if (submissionId && mongoose.Types.ObjectId.isValid(submissionId)) {
       sub = await Submission.findById(submissionId);
-    } else {
+    }
+    if (!sub) {
       // Lấy bài suggested mới nhất, hoặc bài mới nhất
       sub = await Submission.findOne({ classId, studentId, state: 'suggested' }).sort({ submissionNumber: -1 })
         || await Submission.findOne({ classId, studentId }).sort({ submissionNumber: -1 });
@@ -124,19 +129,127 @@ export const uploadStudentSubmission = async (req, res) => {
       });
     }
 
-    console.log(`📥 Upload trực tiếp cho ${studentId} (${student.name}) - ${files.length} tệp. Chấm AI...`);
+    console.log(`📥 Tải bài mới cho ${studentId} (${student.name}) - ${files.length} tệp. Chờ giáo viên bấm Chấm AI.`);
 
-    // Tự động kích hoạt AI chấm bài ngay
-    await autoGradeSubmission(sub);
+    // KHÔNG tự động chấm ngay theo quy trình mới: Upload ảnh xong -> có thể thêm/xóa ảnh -> bấm nút Chấm AI thì mới bắt đầu chấm
     await sub.save();
 
     res.json({
       success: true,
-      message: `Đã nạp bài cho em ${student.name} (${submissionNumber === 1 ? 'Bài nộp đầu tiên' : `Bài nộp lần ${submissionNumber}`}) và AI đã chấm xong!`,
+      message: `✓ Đã tải ${files.length} tệp ảnh bài làm cho em ${student.name} (${submissionNumber === 1 ? 'Bài nộp đầu tiên' : `Bài nộp lần ${submissionNumber}`}). Thầy cô có thể thêm/xóa ảnh hoặc bấm "⚡ Chấm bài bằng AI" để bắt đầu chấm.`,
       submission: sub,
     });
   } catch (error) {
     console.error('Lỗi uploadStudentSubmission:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/classes/:classId/submissions/:studentId/attachments
+// Tải thêm ảnh bổ sung vào bài nộp đang xem (nếu thiếu ảnh)
+export const addAttachmentsToSubmission = async (req, res) => {
+  try {
+    const { classId, studentId } = req.params;
+    const { submissionId } = req.body;
+    let files = req.files || [];
+    if (!files.length && req.file) files = [req.file];
+
+    if (!files.length) {
+      return res.status(400).json({ success: false, message: 'Chưa chọn tệp ảnh nào để thêm' });
+    }
+
+    let sub = null;
+    if (submissionId && mongoose.Types.ObjectId.isValid(submissionId)) {
+      sub = await Submission.findById(submissionId);
+    }
+    if (!sub) {
+      sub = await Submission.findOne({ classId, studentId }).sort({ submissionNumber: -1 });
+    }
+
+    if (!sub) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bài nộp để thêm ảnh' });
+    }
+
+    for (const file of files) {
+      sub.attachments.push({
+        key: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name: file.originalname,
+        type: file.mimetype,
+        filePath: `/uploads/${file.filename}`,
+        fileSize: file.size,
+      });
+    }
+
+    console.log(`📥 Thêm ${files.length} ảnh vào bài nộp ${sub._id} (${studentId}). Tổng ảnh hiện tại: ${sub.attachments.length}`);
+    await sub.save();
+
+    res.json({
+      success: true,
+      message: `✓ Đã thêm ${files.length} ảnh vào bài làm thành công! (Hiện có ${sub.attachments.length} tệp)`,
+      submission: sub,
+    });
+  } catch (error) {
+    console.error('Lỗi addAttachmentsToSubmission:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// DELETE /api/classes/:classId/submissions/:studentId/attachments
+// Xóa 1 ảnh khỏi bài nộp (nếu thừa hoặc nạp nhầm)
+export const deleteAttachmentFromSubmission = async (req, res) => {
+  try {
+    const { classId, studentId } = req.params;
+    const { submissionId, attachmentKey, filePath } = req.body;
+
+    let sub = null;
+    if (submissionId && mongoose.Types.ObjectId.isValid(submissionId)) {
+      sub = await Submission.findById(submissionId);
+    }
+    if (!sub) {
+      sub = await Submission.findOne({ classId, studentId }).sort({ submissionNumber: -1 });
+    }
+
+    if (!sub) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bài nộp' });
+    }
+
+    const index = sub.attachments.findIndex(
+      (att) => (attachmentKey && att.key === attachmentKey) || (filePath && att.filePath === filePath)
+    );
+
+    if (index === -1) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tệp ảnh cần xóa' });
+    }
+
+    const [removed] = sub.attachments.splice(index, 1);
+
+    // Xóa file trên đĩa nếu có
+    if (removed && removed.filePath) {
+      try {
+        const fname = path.basename(removed.filePath);
+        const candidatePaths = [
+          path.resolve('backend/uploads', fname),
+          path.resolve('uploads', fname),
+        ];
+        for (const p of candidatePaths) {
+          if (fs.existsSync(p)) fs.unlinkSync(p);
+        }
+      } catch (err) {
+        console.warn('Lỗi xóa tệp trên đĩa:', err.message);
+      }
+    }
+
+    console.log(`🗑️ Đã xóa 1 tệp ảnh khỏi bài nộp ${sub._id}. Còn lại ${sub.attachments.length} tệp.`);
+    await sub.save();
+
+    res.json({
+      success: true,
+      message: '✓ Đã xóa ảnh khỏi bài làm thành công!',
+      submission: sub,
+      remainingAttachments: sub.attachments.length,
+    });
+  } catch (error) {
+    console.error('Lỗi deleteAttachmentFromSubmission:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -212,18 +325,19 @@ export const receiveUploadedFiles = async (req, res) => {
 };
 
 // POST /api/classes/:classId/submissions/:studentId/grade-ai
-// Kích hoạt AI chấm điểm — theo submissionId cụ thể hoặc bài mới nhất
+// Kích hoạt AI chấm điểm — theo submissionId cụ thể hoặc bài mới nhất (hỗ trợ forceReOcr)
 export const gradeSubmissionWithAI = async (req, res) => {
   try {
     const { classId, studentId } = req.params;
-    const { text, submissionId } = req.body;
+    const { text, submissionId, forceReOcr } = req.body;
 
-    let sub;
-    if (submissionId) {
+    let sub = null;
+    if (submissionId && mongoose.Types.ObjectId.isValid(submissionId)) {
       sub = await Submission.findById(submissionId);
-    } else {
-      // Lấy bài suggested mới nhất hoặc bài mới nhất
-      sub = await Submission.findOne({ classId, studentId, state: { $in: ['new', 'suggested'] } })
+    }
+    if (!sub) {
+      // Lấy bài suggested/needs_review mới nhất hoặc bài mới nhất chưa duyệt
+      sub = await Submission.findOne({ classId, studentId, state: { $in: ['new', 'suggested', 'needs_review', 'provider_unavailable'] } })
         .sort({ submissionNumber: -1 });
     }
 
@@ -260,12 +374,15 @@ export const gradeSubmissionWithAI = async (req, res) => {
       sub.text = text;
     }
 
-    await autoGradeSubmission(sub);
+    await autoGradeSubmission(sub, Boolean(forceReOcr));
     await sub.save();
 
+    const hasScores = sub.scores && sub.scores.length > 0;
     res.json({
       success: true,
-      message: 'AI đã chấm và đề xuất điểm bài làm thành công!',
+      message: hasScores
+        ? 'AI đã chấm và đề xuất điểm bài làm thành công!'
+        : 'Đã lưu bài làm. Cô giáo có thể bấm "✎ Chỉnh sửa & Duyệt bài" để chấm điểm.',
       submission: sub,
     });
   } catch (error) {
@@ -288,7 +405,7 @@ export const gradeAllSubmissionsWithAI = async (req, res) => {
       const sub = await Submission.findOne({
         classId,
         studentId: std.studentId,
-        state: { $in: ['new', 'suggested'] },
+        state: { $in: ['new', 'suggested', 'needs_review', 'provider_unavailable'] },
       }).sort({ submissionNumber: -1 });
 
       if (sub && (sub.text?.trim() || sub.attachments?.length > 0)) {
@@ -304,6 +421,179 @@ export const gradeAllSubmissionsWithAI = async (req, res) => {
       count,
     });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/classes/:classId/submissions/:studentId/retry
+// Thử lại bài nộp bị lỗi khi AI provider đã hoạt động trở lại
+export const retrySubmission = async (req, res) => {
+  try {
+    const { classId, studentId } = req.params;
+    const { submissionId } = req.body;
+
+    let sub = null;
+    if (submissionId && mongoose.Types.ObjectId.isValid(submissionId)) {
+      sub = await Submission.findById(submissionId);
+    }
+    if (!sub) {
+      sub = await Submission.findOne({
+        classId,
+        studentId,
+        state: { $in: ['provider_unavailable', 'failed', 'needs_review', 'new'] },
+      }).sort({ submissionNumber: -1 }) || await Submission.findOne({ classId, studentId }).sort({ submissionNumber: -1 });
+    }
+
+    if (!sub) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bài nộp để thử lại' });
+    }
+
+    // Đánh dấu processing và gọi lại AI
+    sub.state = 'processing';
+    await sub.save();
+
+    await autoGradeSubmission(sub, { forceReOcr: true });
+    await sub.save();
+
+    const isSuccess = ['suggested', 'completed', 'approved'].includes(sub.state);
+    res.json({
+      success: isSuccess,
+      message: isSuccess
+        ? '✓ Đã thử lại thành công! AI đã đọc bài và đề xuất điểm.'
+        : `⚠️ Thử lại chưa thành công: ${sub.errorDetails?.errorMessage || 'Dịch vụ AI vẫn chưa sẵn sàng.'}`,
+      submission: sub,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/classes/:classId/submissions/retry-failed
+// Thử lại tất cả các bài bị lỗi trong lớp
+export const retryAllFailedSubmissions = async (req, res) => {
+  try {
+    const { classId } = req.params;
+
+    const failedSubs = await Submission.find({
+      classId,
+      state: { $in: ['provider_unavailable', 'failed', 'needs_review'] },
+    });
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (const sub of failedSubs) {
+      sub.state = 'processing';
+      await autoGradeSubmission(sub, { forceReOcr: true });
+      await sub.save();
+      if (['suggested', 'completed', 'approved'].includes(sub.state)) {
+        successCount++;
+      } else {
+        failedCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Đã thử lại ${failedSubs.length} bài: ${successCount} thành công, ${failedCount} bài vẫn chờ xử lý.`,
+      successCount,
+      failedCount,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/ai/providers-status
+// Kiểm tra trạng thái các nhà cung cấp AI (cho Giáo viên / Quản trị viên)
+export const getAiProvidersStatus = async (req, res) => {
+  try {
+    const status = aiProviderTracker.getStatus();
+    res.json({
+      success: true,
+      ...status,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// DELETE /api/classes/:classId/submissions/:submissionId
+// Hoặc /api/classes/:classId/submissions/:studentId/:submissionId
+// Xóa một bài nộp cụ thể của học sinh
+export const deleteSubmission = async (req, res) => {
+  try {
+    const { classId, submissionId, studentId } = req.params;
+
+    // Tìm bài nộp theo submissionId (hoặc studentId nếu không có submissionId)
+    let sub = null;
+    if (submissionId && mongoose.Types.ObjectId.isValid(submissionId)) {
+      sub = await Submission.findById(submissionId);
+    }
+    if (!sub && submissionId) {
+      sub = await Submission.findOne({ classId, submissionId });
+    }
+    if (!sub && studentId) {
+      sub = await Submission.findOne({ classId, studentId }).sort({ submissionNumber: -1 });
+    }
+
+    if (!sub) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bài nộp để xóa' });
+    }
+
+    const targetStudentId = sub.studentId;
+    const targetClassId = sub.classId;
+
+    // Xóa file đính kèm trên đĩa nếu có
+    if (sub.attachments && sub.attachments.length > 0) {
+      for (const att of sub.attachments) {
+        try {
+          const fname = path.basename(att.filePath || att.name || '');
+          if (fname) {
+            const candidatePaths = [
+              path.resolve('backend/uploads', fname),
+              path.resolve('uploads', fname),
+            ];
+            for (const p of candidatePaths) {
+              if (fs.existsSync(p)) {
+                fs.unlinkSync(p);
+              }
+            }
+          }
+        } catch (unlinkErr) {
+          console.warn('Lỗi khi xóa tệp đính kèm trên đĩa:', unlinkErr.message);
+        }
+      }
+    }
+
+    // Xóa bài nộp khỏi database
+    await Submission.deleteOne({ _id: sub._id });
+
+    // Đánh lại số thứ tự (submissionNumber) cho các bài còn lại của học sinh
+    const remainingSubs = await Submission.find({
+      classId: targetClassId,
+      studentId: targetStudentId,
+    }).sort({ createdAt: 1 });
+
+    for (let i = 0; i < remainingSubs.length; i++) {
+      const s = remainingSubs[i];
+      const newNum = i + 1;
+      s.submissionNumber = newNum;
+      s.submissionLabel = newNum === 1 ? 'Bài nộp' : `Bài nộp lần ${newNum}`;
+      await s.save();
+    }
+
+    console.log(`🗑️ Đã xóa bài nộp ${sub._id} của học sinh ${targetStudentId}. Còn lại ${remainingSubs.length} bài.`);
+
+    res.json({
+      success: true,
+      message: 'Đã xóa bài nộp thành công!',
+      deletedId: sub._id,
+      studentId: targetStudentId,
+      remainingCount: remainingSubs.length,
+    });
+  } catch (error) {
+    console.error('Lỗi deleteSubmission:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

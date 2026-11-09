@@ -7,7 +7,6 @@ export default function OverviewPage({ classroom, students, setPage, onSelectStu
   if (!classroom) {
     return (
       <div className="card" style={{ padding: '60px 30px', textAlign: 'center', maxWidth: '600px', margin: '40px auto' }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏫</div>
         <h2 style={{ margin: '0 0 10px 0', color: 'var(--ink)' }}>Chào mừng thầy cô đến với Hệ thống</h2>
         <p style={{ color: 'var(--muted)', fontSize: '14px', margin: '0 0 24px 0', lineHeight: 1.6 }}>
           Tài khoản của bạn hiện chưa có lớp học nào trong cơ sở dữ liệu. Hãy tạo lớp học đầu tiên của trường để bắt đầu nhập danh sách học sinh và nhận bài!
@@ -32,7 +31,7 @@ export default function OverviewPage({ classroom, students, setPage, onSelectStu
       <div className="pagehead">
         <div>
           <div className="eyebrow">
-            TRỢ LÝ CHẤM CHỮA BÀI · {classroom?.school?.toUpperCase() || 'HỆ THỐNG ĐA TRƯỜNG'}
+            TRỢ LÝ CHẤM CHỮA BÀI · QUẢN LÝ LỚP HỌC
           </div>
           <h1>Tổng quan {classroom?.label || ''}</h1>
           <p className="sub">
@@ -175,20 +174,20 @@ export default function OverviewPage({ classroom, students, setPage, onSelectStu
           <div style={{ padding: '16px' }}>
             <div style={{ background: '#f5f7f2', padding: '14px', borderRadius: '8px', marginBottom: '16px' }}>
               <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#7a8670', marginBottom: '4px' }}>
-                Đề bài hiện tại
+                Khung đánh giá bài tập làm văn
               </div>
-              <strong style={{ fontSize: '15px', color: '#273822' }}>
-                Viết đoạn văn ngắn miêu tả một cây bóng mát hoặc cây hoa/cây ăn quả
+              <strong style={{ fontSize: '15px', color: '#273822', display: 'block' }}>
+                Hỗ trợ đa dạng thể loại: Miêu tả, Kể chuyện, Nêu cảm nghĩ, Viết thư...
               </strong>
             </div>
 
-            <h4 style={{ marginBottom: '10px' }}>4 Tiêu chí đánh giá (Tổng 10 điểm)</h4>
+            <h4 style={{ marginBottom: '10px' }}>4 Tiêu chí đánh giá chuẩn (Tổng 10 điểm)</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {[
-                { name: '1. Nội dung & chi tiết', max: 4, desc: 'Đúng yêu cầu tả cây; có chi tiết cụ thể về hình dáng...' },
-                { name: '2. Sắp xếp ý', max: 2, desc: 'Các ý được kết nối và sắp xếp hợp lý trong đoạn văn.' },
-                { name: '3. Từ ngữ & diễn đạt', max: 2, desc: 'Từ ngữ phù hợp; câu rõ nghĩa; có cách diễn đạt riêng.' },
-                { name: '4. Chính tả & dấu câu', max: 2, desc: 'Viết đúng chính tả, viết hoa và dấu câu.' },
+                { name: '1. Nội dung & chi tiết', max: 4, desc: 'Đúng trọng tâm đề bài; có chi tiết, hình ảnh cụ thể và sinh động.' },
+                { name: '2. Sắp xếp ý & bố cục', max: 2, desc: 'Bố cục rõ ràng, các câu và đoạn kết nối mạch lạc, hợp lý.' },
+                { name: '3. Từ ngữ & diễn đạt', max: 2, desc: 'Từ ngữ phù hợp, gợi cảm; câu rõ nghĩa; diễn đạt tự nhiên, sáng tạo.' },
+                { name: '4. Chính tả & dấu câu', max: 2, desc: 'Viết đúng chính tả, đúng quy tắc viết hoa và dấu câu.' },
               ].map((c, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderRadius: '6px', border: '1px solid #e3e8dc' }}>
                   <div>

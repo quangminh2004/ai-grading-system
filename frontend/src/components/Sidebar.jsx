@@ -36,7 +36,6 @@ export default function Sidebar({
         <span className="brand-icon">✳</span>
         <span>
           Chấm <i>&</i> Chữa AI
-          <small title={currentUser?.school || 'Đa trường học'}>{schoolShort}</small>
         </span>
       </a>
 
@@ -46,7 +45,7 @@ export default function Sidebar({
         <div>
           {isAdmin ? 'Quản trị viên Hệ thống' : (currentUser?.fullName || 'Giáo viên')}
           <small>
-            {isAdmin ? 'Trung tâm Quản trị Admin' : (currentUser?.school || 'Giáo viên')}
+            {isAdmin ? 'Trung tâm Quản trị Admin' : 'Giáo viên'}
           </small>
         </div>
       </div>
@@ -62,28 +61,21 @@ export default function Sidebar({
               className={page === 'admin_users' ? 'active' : ''}
               onClick={() => setPage('admin_users')}
             >
-              <span>👥</span>Quản lý Giáo viên
+              <span>☷</span>Quản lý Giáo viên
             </button>
             <button
               className={page === 'admin_schools' ? 'active' : ''}
               onClick={() => setPage('admin_schools')}
             >
-              <span>🏫</span>Danh mục Trường &amp; Lớp
+              <span>▦</span>Danh mục Trường &amp; Lớp
             </button>
             <button
               className={page === 'admin_stats' ? 'active' : ''}
               onClick={() => setPage('admin_stats')}
             >
-              <span>📊</span>Báo cáo &amp; Thống kê
+              <span>▤</span>Báo cáo &amp; Thống kê
             </button>
           </nav>
-
-          {/* Hộp thông tin Admin */}
-          <div className="side-bottom" style={{ marginTop: 'auto' }}>
-            <div className="human-icon">🛡️</div>
-            <strong>Quản trị Hệ thống</strong>
-            <p>Admin quản lý mạng lưới trường học, tạo và cấp tài khoản cho các cô giáo.</p>
-          </div>
         </>
       )}
 
@@ -131,25 +123,18 @@ export default function Sidebar({
               <span>☷</span>Tiêu chí đánh giá
             </button>
           </nav>
-
-          {/* Hộp thông tin Giáo viên */}
-          <div className="side-bottom">
-            <div className="human-icon">✓</div>
-            <strong>AI hỗ trợ.<br />Thầy cô quyết định.</strong>
-            <p>Mỗi gợi ý đều cần được giáo viên xem xét và xác nhận trước khi duyệt.</p>
-          </div>
         </>
       )}
 
       {/* Profile & Logout */}
-      <div className="teacher">
+      <div className="teacher" style={{ marginTop: 'auto' }}>
         <span className={`avatar ${isAdmin ? 'peach' : ''}`}>{avatarLetters}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {currentUser?.fullName || 'Người dùng'}
           </div>
           <small style={{ color: 'var(--muted)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {isAdmin ? '👑 Quản trị viên' : `👩‍🏫 ${currentUser?.school || 'Giáo viên'}`}
+            {isAdmin ? 'Quản trị viên' : 'Giáo viên'}
           </small>
         </div>
         <button
@@ -157,7 +142,7 @@ export default function Sidebar({
           onClick={onLogout}
           title="Đăng xuất khỏi hệ thống"
         >
-          🚪
+          Thoát
         </button>
       </div>
     </aside>

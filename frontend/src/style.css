@@ -1,6 +1,6 @@
 /* ============================================================
-   style.css — Kiểu dáng chính
-   Trợ lý Chấm Chữa Bài · Thanh Lân
+   style.css ΓÇö Kiß╗âu d├íng ch├¡nh
+   Trß╗ú l├╜ Chß║Ñm Chß╗»a B├ái ┬╖ Thanh L├ón
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;450;500;550;600;650;700;750;800&display=swap');
@@ -848,7 +848,7 @@ h3 {
 
 
 /* ============================================================
-   REVIEW GRID (bài làm + điểm)
+   REVIEW GRID (b├ái l├ám + ─æiß╗âm)
    ============================================================ */
 
 .review-grid {
@@ -867,7 +867,7 @@ h3 {
   justify-content: space-between;
 }
 
-/* Paper (bản chữ) */
+/* Paper (bß║ún chß╗») */
 .paper {
   background:    #fcfbf7;
   border:        1px solid #eeeae0;
@@ -991,7 +991,7 @@ h3 {
 
 
 /* ============================================================
-   CORRECTIONS (chữa lỗi)
+   CORRECTIONS (chß╗»a lß╗ùi)
    ============================================================ */
 
 .correction-title {
@@ -1438,7 +1438,7 @@ dialog::backdrop {
 
 
 /* ============================================================
-   RESPONSIVE — Large screens (>= 1450px)
+   RESPONSIVE ΓÇö Large screens (>= 1450px)
    ============================================================ */
 
 @media (min-width: 1450px) {
@@ -1451,7 +1451,7 @@ dialog::backdrop {
 
 
 /* ============================================================
-   RESPONSIVE — Medium screens (<= 1200px)
+   RESPONSIVE ΓÇö Medium screens (<= 1200px)
    ============================================================ */
 
 @media (max-width: 1200px) {
@@ -1474,7 +1474,7 @@ dialog::backdrop {
 
 
 /* ============================================================
-   RESPONSIVE — Tablet & Mobile (<= 860px)
+   RESPONSIVE ΓÇö Tablet & Mobile (<= 860px)
    ============================================================ */
 
 @media (max-width: 860px) {
@@ -1559,7 +1559,7 @@ dialog::backdrop {
 
 
 /* ============================================================
-   RESPONSIVE — Extra small screens / Mobile (<= 540px)
+   RESPONSIVE ΓÇö Extra small screens / Mobile (<= 540px)
    ============================================================ */
 
 @media (max-width: 540px) {
@@ -2455,4 +2455,312 @@ dialog::backdrop {
   background: #fef3c7;
   color: #92400e;
   border: 1px solid #fde68a;
+}
+
+
+/* ============================================================
+   CẤU HÌNH GIAO DIỆN MỚI: TĂNG CỠ CHỮ & LOẠI BỎ CHI TIẾT RỐI MẮT
+   ============================================================ */
+
+/* 1. Ẩn các thành phần rối mắt */
+footer,
+.demo-pill,
+.side-bottom {
+  display: none !important;
+}
+
+/* 2. Cỡ chữ tổng thể toàn hệ thống */
+body {
+  font-size: 15.5px !important;
+  line-height: 1.65;
+}
+
+small {
+  font-size: 12.5px;
+}
+
+/* Thanh điều hướng Sidebar */
+.brand {
+  font-size: 22px;
+}
+.brand small {
+  font-size: 11.5px;
+}
+.workspace {
+  font-size: 14.5px;
+}
+.workspace small {
+  font-size: 12.5px;
+}
+.navlabel {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+}
+nav button {
+  font-size: 15px;
+  font-weight: 550;
+  padding: 12px 14px;
+}
+nav button span {
+  font-size: 17px;
+}
+nav b {
+  font-size: 12.5px;
+}
+.teacher {
+  font-size: 14px;
+}
+
+/* Thanh Header */
+header {
+  font-size: 14.5px;
+  min-height: 66px;
+}
+.breadcrumb {
+  font-size: 14.5px;
+}
+.crumb-active {
+  font-size: 15.5px;
+  font-weight: 700;
+}
+.class-picker {
+  font-size: 14px;
+  font-weight: 600;
+}
+.class-picker select {
+  font-size: 14px;
+  padding: 7px 12px;
+}
+
+/* Tiêu đề & nút bấm */
+h1 { font-size: 28px; }
+h2 { font-size: 22px; }
+h3 { font-size: 18px; }
+h4 { font-size: 16.5px; }
+.sub { font-size: 14.5px; }
+.eyebrow { font-size: 13px; }
+
+.btn {
+  font-size: 14.5px;
+  padding: 10px 18px;
+  font-weight: 600;
+}
+.btn.compact {
+  font-size: 13.5px;
+  padding: 6px 14px;
+}
+.notice {
+  font-size: 14.5px;
+  padding: 14px 18px;
+}
+.stat-top {
+  font-size: 14px;
+}
+.stat-value {
+  font-size: 34px;
+  font-weight: 700;
+}
+.stat small {
+  font-size: 13.5px;
+}
+
+/* Danh sách bài làm học sinh (Cột trái) */
+.card-head .count {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: #6d7b6b;
+}
+.searchbox input {
+  font-size: 14.5px;
+  padding: 11px 14px 11px 36px;
+  border-radius: 8px;
+}
+.searchbox span {
+  font-size: 19px;
+  top: 9px;
+  left: 12px;
+}
+.filter {
+  font-size: 13.5px;
+  padding: 6px 12px;
+  font-weight: 550;
+}
+.student .avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 13.5px;
+}
+.student-top strong {
+  font-size: 15.5px;
+  font-weight: 700;
+}
+.student-id {
+  font-size: 13px;
+  font-weight: 650;
+  padding: 2px 8px;
+}
+.status {
+  font-size: 12.5px;
+  font-weight: 650;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.list-foot {
+  font-size: 13.5px;
+}
+
+/* Chi tiết bài làm học sinh (Cột phải) */
+.detail-head .avatar {
+  width: 48px;
+  height: 48px;
+  font-size: 15px;
+}
+.detail-head h2 {
+  font-size: 24px;
+  font-weight: 700;
+}
+.detail-head .status {
+  font-size: 13.5px;
+  font-weight: 650;
+  padding: 6px 14px;
+}
+.detail-meta {
+  font-size: 14px;
+}
+.tab {
+  font-size: 15.5px;
+  font-weight: 600;
+  padding: 13px 0;
+}
+.tab.active {
+  font-weight: 700;
+}
+.sectionlabel {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+/* Bài văn của học sinh (To rõ ràng, dễ đọc cho thầy cô) */
+.paper {
+  font-size: 17.5px !important;
+  line-height: 2.1 !important;
+  padding: 22px 24px;
+}
+.paper .paper-title {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.paper-foot {
+  font-size: 13.5px;
+}
+
+/* Khối điểm số & Rubric */
+.score-num {
+  font-size: 38px;
+  font-weight: 700;
+}
+.score-num span {
+  font-size: 14.5px;
+}
+.scorebox strong {
+  font-size: 16.5px;
+  font-weight: 700;
+}
+.scorebox small {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.rubric-title {
+  font-size: 14.5px;
+  font-weight: 650;
+}
+.rubric-explain {
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+/* Sửa lỗi & Nhận xét */
+.correction-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+.correction-title b {
+  font-size: 13px;
+}
+.correction {
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+.correction .kind {
+  font-size: 12px;
+  font-weight: 700;
+}
+.correction p {
+  font-size: 13.5px;
+}
+.feedback strong {
+  font-size: 16px;
+  font-weight: 700;
+}
+.feedback p {
+  font-size: 14.5px;
+  line-height: 1.8;
+}
+.approved-panel {
+  font-size: 14.5px;
+}
+.review-bottom p {
+  font-size: 13.5px;
+}
+
+/* Form, Modal, Bảng dữ liệu */
+.field {
+  font-size: 13.5px;
+}
+.field input,
+.field textarea,
+.field select {
+  font-size: 14.5px;
+}
+.modal-head h2,
+.modal-header h3 {
+  font-size: 20px;
+}
+.modal-form input,
+.modal-form select {
+  font-size: 14.5px;
+  padding: 10px 13px;
+}
+.btn-primary,
+.btn-secondary {
+  font-size: 14.5px;
+  padding: 9px 18px;
+}
+.badge-tag {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+}
+.data-table {
+  font-size: 14px;
+}
+.data-table th {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.box p, .box li {
+  font-size: 13.5px;
+}
+.step {
+  font-size: 13.5px;
+}
+.rule-line strong {
+  font-size: 14.5px;
+}
+.rule-line p {
+  font-size: 13.5px;
+}
+.rule-line b {
+  font-size: 18px;
 }

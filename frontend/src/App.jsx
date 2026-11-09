@@ -455,15 +455,6 @@ export default function App() {
             )
           )}
         </main>
-
-        <footer>
-          <span>
-            {isAdmin
-              ? 'Hệ Thống Trợ Lý Chấm & Chữa Bài AI · Cổng Điều Hành Quản Trị Viên'
-              : `Trợ Lý Chấm & Chữa Bài AI · ${currentUser?.school || 'Không Gian Giáo Viên'}`}
-          </span>
-          <span>Nền tảng Quản lý &amp; Đánh giá Học tập Trực tuyến</span>
-        </footer>
       </div>
 
       {/* Modal Chỉnh Sửa & Duyệt Điểm (Giáo viên) */}
@@ -526,7 +517,7 @@ export default function App() {
                   Hủy
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  ✓ Tạo lớp học
+                  Tạo lớp học
                 </button>
               </div>
             </form>

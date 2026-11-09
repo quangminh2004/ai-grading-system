@@ -16,8 +16,14 @@ import {
   reviewSubmission,
   receiveUploadedFiles,
   uploadStudentSubmission,
+  addAttachmentsToSubmission,
+  deleteAttachmentFromSubmission,
   gradeSubmissionWithAI,
   gradeAllSubmissionsWithAI,
+  retrySubmission,
+  retryAllFailedSubmissions,
+  getAiProvidersStatus,
+  deleteSubmission,
 } from '../controllers/submissionController.js';
 import {
   login,
@@ -98,18 +104,41 @@ router.post('/classes/:classId/roster', optionalAuth, importRoster);
 router.get('/assignment', getAssignment);
 
 // ==================== BÀI NỘP & CHẤM/DUYỆT ====================
-router.patch('/classes/:classId/submissions/:studentId/review', optionalAuth, reviewSubmission);
-router.post('/classes/:classId/submissions/:studentId/grade-ai', optionalAuth, gradeSubmissionWithAI);
-router.post('/classes/:classId/submissions/grade-all-ai', optionalAuth, gradeAllSubmissionsWithAI);
-router.post(
-  '/classes/:classId/submissions/:studentId/upload',
-  upload.array('files', 10),
-  uploadStudentSubmission
-);
+router.get('/ai/providers-status', optionalAuth, getAiProvidersStatus);
+router.get('/admin/ai-providers/status', requireAuth, requireAdmin, getAiProvidersStatus);
+
 router.post(
   '/classes/:classId/submissions/receive-batch',
   upload.array('files', 20),
   receiveUploadedFiles
 );
+router.post('/classes/:classId/submissions/grade-all-ai', optionalAuth, gradeAllSubmissionsWithAI);
+router.post('/classes/:classId/submissions/retry-failed', optionalAuth, retryAllFailedSubmissions);
+
+router.post(
+  '/classes/:classId/submissions/:studentId/upload',
+  upload.array('files', 10),
+  uploadStudentSubmission
+);
+
+// Quản lý đính kèm ảnh (Thêm / Xóa ảnh) - PHẢI ĐẶT TRƯỚC wildcard /:submissionId
+router.post(
+  '/classes/:classId/submissions/:studentId/attachments',
+  upload.array('files', 10),
+  addAttachmentsToSubmission
+);
+router.delete(
+  '/classes/:classId/submissions/:studentId/attachments',
+  optionalAuth,
+  deleteAttachmentFromSubmission
+);
+
+router.patch('/classes/:classId/submissions/:studentId/review', optionalAuth, reviewSubmission);
+router.post('/classes/:classId/submissions/:studentId/grade-ai', optionalAuth, gradeSubmissionWithAI);
+router.post('/classes/:classId/submissions/:studentId/retry', optionalAuth, retrySubmission);
+
+// Xóa bài nộp (Wildcard /:submissionId) - PHẢI ĐẶT SAU CÙNG để không nuốt route /attachments
+router.delete('/classes/:classId/submissions/:studentId/:submissionId', optionalAuth, deleteSubmission);
+router.delete('/classes/:classId/submissions/:submissionId', optionalAuth, deleteSubmission);
 
 export default router;

@@ -2,6 +2,7 @@ import { Class } from '../models/Class.js';
 import { Student } from '../models/Student.js';
 import { Submission } from '../models/Submission.js';
 import { Assignment } from '../models/Assignment.js';
+import { isValidVietnameseText } from '../services/aiGradingService.js';
 
 // GET /api/classes
 export const getClasses = async (req, res) => {
@@ -98,6 +99,60 @@ export const getClassDetails = async (req, res) => {
     const students = await Student.find({ classId }).sort({ studentId: 1 }).lean();
     // Lấy TẤT CẢ submissions của lớp, sắp xếp theo submissionNumber tăng dần
     const allSubmissions = await Submission.find({ classId }).sort({ submissionNumber: 1 }).lean();
+
+    // Tự động rà soát và làm sạch dữ liệu rác Tesseract OCR cũ hoặc lỗi kỹ thuật cũ
+    for (const s of allSubmissions) {
+      let needsDbUpdate = false;
+      const updateFields = {};
+
+      if (s.text && !isValidVietnameseText(s.text)) {
+        console.warn(`[Data Cleanup] Làm sạch văn bản rác OCR cũ ở bài nộp ${s._id} (${s.studentId})`);
+        s.text = '';
+        updateFields.text = '';
+        needsDbUpdate = true;
+      }
+
+      if (s.state === 'provider_unavailable' || s.state === 'failed') {
+        s.state = (s.scores && s.scores.length > 0) ? 'suggested' : 'needs_review';
+        s.errorDetails = null;
+        updateFields.state = s.state;
+        updateFields.errorDetails = null;
+        needsDbUpdate = true;
+      }
+
+      const hasErrorPattern = (val) => {
+        if (!val || typeof val !== 'string') return false;
+        return /gián đoạn|PERMISSION_DENIED|credit|quota|Billing|Sự cố AI/i.test(val);
+      };
+
+      if (hasErrorPattern(s.support)) {
+        s.support = 'Ảnh bài làm đã được lưu an toàn. Cô giáo có thể bấm "✎ Chỉnh sửa & Duyệt bài" để chấm điểm hoặc bấm "✏️ Sửa văn bản bài làm" để nhập bài.';
+        updateFields.support = s.support;
+        needsDbUpdate = true;
+      }
+
+      if (hasErrorPattern(s.feedback)) {
+        s.feedback = 'Bài làm của học sinh đã được lưu trữ an toàn trên hệ thống.';
+        updateFields.feedback = s.feedback;
+        needsDbUpdate = true;
+      }
+
+      if (hasErrorPattern(s.reason)) {
+        s.reason = '';
+        updateFields.reason = '';
+        needsDbUpdate = true;
+      }
+
+      if (s.errorDetails) {
+        s.errorDetails = null;
+        updateFields.errorDetails = null;
+        needsDbUpdate = true;
+      }
+
+      if (needsDbUpdate) {
+        Submission.updateOne({ _id: s._id }, { $set: updateFields }).catch(() => {});
+      }
+    }
 
     // Gộp submissions vào từng học sinh — mỗi học sinh có mảng submissions[]
     const mergedStudents = students.map((std) => {

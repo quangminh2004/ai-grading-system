@@ -16,7 +16,7 @@ RUN cd frontend && npm install
 COPY . .
 
 # Build frontend production bundle
-RUN cd frontend && npm run build && cd .. && cp -r frontend/dist dist
+RUN cd frontend && npm run build && cd .. && rm -rf dist && cp -r frontend/dist dist
 
 # Môi trường chạy
 ENV NODE_ENV=production
