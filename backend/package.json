@@ -1,6 +1,6 @@
 {
   "name": "thanh-lan-cham-chua-backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Backend API cho Trợ lý Chấm Chữa Bài - Thanh Lân",
   "main": "src/server.js",
   "type": "module",
