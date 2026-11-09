@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getFileUrl, api } from '../api';
 import ImageEditorModal from './ImageEditorModal';
+import { compressImageFile } from '../utils/imageOptimizer';
 
 const total = (a) => (a || []).reduce((s, n) => s + Number(n), 0);
 const fmt = (n) => Number(n).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
@@ -182,10 +183,14 @@ export default function GradingPage({
     const mode = explicitMode || uploadMode;
 
     setUploadingDirect(true);
-    showToast?.(mode === 'append' ? '⏳ Đang tải thêm ảnh vào bài làm...' : '⏳ Đang tải bài làm lên hệ thống...');
+    showToast?.(mode === 'append' ? '⏳ Đang tối ưu và tải thêm ảnh...' : '⏳ Đang tối ưu và tải bài làm lên...');
     try {
+      const optimizedFiles = await Promise.all(
+        filesToUpload.map((f) => compressImageFile(f))
+      );
+
       const formData = new FormData();
-      filesToUpload.forEach((f) => formData.append('files', f));
+      optimizedFiles.forEach((f) => formData.append('files', f));
 
       let res;
       if (mode === 'append' && activeSub?._id) {

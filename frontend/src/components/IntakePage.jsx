@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ImageEditorModal from './ImageEditorModal';
+import { compressImageFile } from '../utils/imageOptimizer';
 
 // Chuẩn hóa tên để đối chiếu
 function normalize(value) {
@@ -135,13 +136,29 @@ export default function IntakePage({
 
     setUploading(true);
 
-    const formData = new FormData();
-    selectedFiles.forEach((file) => {
-      formData.append('files', file);
-    });
-    formData.append('mapping', JSON.stringify(mapping));
-
     try {
+      // Tự động tối ưu nén ảnh trước khi tải lên (nếu chưa nén)
+      const optimizedFiles = await Promise.all(
+        selectedFiles.map((file) => compressImageFile(file))
+      );
+
+      const formData = new FormData();
+      optimizedFiles.forEach((file) => {
+        formData.append('files', file);
+      });
+
+      // Cập nhật mapping với tên tệp sau nén (nếu có đổi đuôi)
+      const finalMapping = {};
+      optimizedFiles.forEach((file, idx) => {
+        const origFile = selectedFiles[idx];
+        const studentId = mapping[origFile.name] || mapping[file.name];
+        if (studentId) {
+          finalMapping[file.name] = studentId;
+        }
+      });
+
+      formData.append('mapping', JSON.stringify(finalMapping));
+
       await onUploadBatch(formData);
       setSelectedFiles([]);
       setMapping({});
