@@ -6,6 +6,7 @@ import { Assignment } from '../models/Assignment.js';
 import { Student } from '../models/Student.js';
 import { autoGradeSubmission } from '../services/aiGradingService.js';
 import { aiProviderTracker } from '../services/aiErrorHandler.js';
+import { uploadBufferToR2, deleteFromR2, isR2Configured } from '../services/r2StorageService.js';
 
 // GET /api/assignment
 export const getAssignment = async (req, res) => {
@@ -120,11 +121,22 @@ export const uploadStudentSubmission = async (req, res) => {
     });
 
     for (const file of files) {
+      let finalFilePath = `/uploads/${file.filename}`;
+      if (isR2Configured()) {
+        try {
+          const buf = fs.readFileSync(file.path);
+          finalFilePath = await uploadBufferToR2(buf, file.filename, file.mimetype);
+          if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        } catch (r2Err) {
+          console.warn('⚠️ Lỗi upload lên Cloudflare R2, fallback lưu tạm cục bộ:', r2Err.message);
+        }
+      }
+
       sub.attachments.push({
         key: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         name: file.originalname,
         type: file.mimetype,
-        filePath: `/uploads/${file.filename}`,
+        filePath: finalFilePath,
         fileSize: file.size,
       });
     }
@@ -171,11 +183,22 @@ export const addAttachmentsToSubmission = async (req, res) => {
     }
 
     for (const file of files) {
+      let finalFilePath = `/uploads/${file.filename}`;
+      if (isR2Configured()) {
+        try {
+          const buf = fs.readFileSync(file.path);
+          finalFilePath = await uploadBufferToR2(buf, file.filename, file.mimetype);
+          if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        } catch (r2Err) {
+          console.warn('⚠️ Lỗi upload lên Cloudflare R2, fallback lưu tạm cục bộ:', r2Err.message);
+        }
+      }
+
       sub.attachments.push({
         key: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         name: file.originalname,
         type: file.mimetype,
-        filePath: `/uploads/${file.filename}`,
+        filePath: finalFilePath,
         fileSize: file.size,
       });
     }
@@ -223,19 +246,23 @@ export const deleteAttachmentFromSubmission = async (req, res) => {
 
     const [removed] = sub.attachments.splice(index, 1);
 
-    // Xóa file trên đĩa nếu có
+    // Xóa file trên Cloudflare R2 hoặc trên đĩa cục bộ
     if (removed && removed.filePath) {
-      try {
-        const fname = path.basename(removed.filePath);
-        const candidatePaths = [
-          path.resolve('backend/uploads', fname),
-          path.resolve('uploads', fname),
-        ];
-        for (const p of candidatePaths) {
-          if (fs.existsSync(p)) fs.unlinkSync(p);
+      if (removed.filePath.startsWith('http')) {
+        deleteFromR2(removed.filePath);
+      } else {
+        try {
+          const fname = path.basename(removed.filePath);
+          const candidatePaths = [
+            path.resolve('backend/uploads', fname),
+            path.resolve('uploads', fname),
+          ];
+          for (const p of candidatePaths) {
+            if (fs.existsSync(p)) fs.unlinkSync(p);
+          }
+        } catch (err) {
+          console.warn('Lỗi xóa tệp trên đĩa:', err.message);
         }
-      } catch (err) {
-        console.warn('Lỗi xóa tệp trên đĩa:', err.message);
       }
     }
 
@@ -289,12 +316,23 @@ export const receiveUploadedFiles = async (req, res) => {
         submissionLabel: submissionNumber === 1 ? 'Bài nộp' : `Bài nộp lại lần ${submissionNumber - 1}`,
       });
 
+      let finalFilePath = `/uploads/${file.filename}`;
+      if (isR2Configured()) {
+        try {
+          const buf = fs.readFileSync(file.path);
+          finalFilePath = await uploadBufferToR2(buf, file.filename, file.mimetype);
+          if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        } catch (r2Err) {
+          console.warn('⚠️ Lỗi upload lên Cloudflare R2, fallback lưu tạm cục bộ:', r2Err.message);
+        }
+      }
+
       // Thêm tệp đính kèm
       sub.attachments.push({
         key: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         name: file.originalname,
         type: file.mimetype,
-        filePath: `/uploads/${file.filename}`,
+        filePath: finalFilePath,
         fileSize: file.size,
       });
 
@@ -544,24 +582,28 @@ export const deleteSubmission = async (req, res) => {
     const targetStudentId = sub.studentId;
     const targetClassId = sub.classId;
 
-    // Xóa file đính kèm trên đĩa nếu có
+    // Xóa file đính kèm trên Cloudflare R2 hoặc trên đĩa nếu có
     if (sub.attachments && sub.attachments.length > 0) {
       for (const att of sub.attachments) {
-        try {
-          const fname = path.basename(att.filePath || att.name || '');
-          if (fname) {
-            const candidatePaths = [
-              path.resolve('backend/uploads', fname),
-              path.resolve('uploads', fname),
-            ];
-            for (const p of candidatePaths) {
-              if (fs.existsSync(p)) {
-                fs.unlinkSync(p);
+        if (att.filePath && att.filePath.startsWith('http')) {
+          deleteFromR2(att.filePath);
+        } else {
+          try {
+            const fname = path.basename(att.filePath || att.name || '');
+            if (fname) {
+              const candidatePaths = [
+                path.resolve('backend/uploads', fname),
+                path.resolve('uploads', fname),
+              ];
+              for (const p of candidatePaths) {
+                if (fs.existsSync(p)) {
+                  fs.unlinkSync(p);
+                }
               }
             }
+          } catch (unlinkErr) {
+            console.warn('Lỗi khi xóa tệp đính kèm trên đĩa:', unlinkErr.message);
           }
-        } catch (unlinkErr) {
-          console.warn('Lỗi khi xóa tệp đính kèm trên đĩa:', unlinkErr.message);
         }
       }
     }

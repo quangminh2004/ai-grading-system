@@ -779,10 +779,35 @@ export async function autoGradeSubmission(sub, optionsInput = {}) {
   }
   const shouldOcr = forceReOcr || !extractedText || textIsGarbage;
 
-  // Thu thập TẤT CẢ các tệp ảnh hợp lệ từ sub.attachments (để hỗ trợ bài nộp gồm nhiều trang/nhiều ảnh)
+  // Thu thập TẤT CẢ các tệp ảnh hợp lệ từ sub.attachments (hỗ trợ cả Cloudflare R2 URL & đĩa cục bộ)
   const imageFiles = [];
   if (sub.attachments && sub.attachments.length > 0) {
     for (const att of sub.attachments) {
+      const isImg = att.type?.includes('image') || /\.(png|jpe?g|webp)$/i.test(att.name || att.filePath || '');
+      if (!isImg) continue;
+
+      // 1. Nếu ảnh nằm trên Cloudflare R2 hoặc URL trực tuyến (http/https)
+      if (att.filePath && (att.filePath.startsWith('http://') || att.filePath.startsWith('https://'))) {
+        try {
+          const fetchRes = await fetch(att.filePath);
+          if (fetchRes.ok) {
+            const arrayBuf = await fetchRes.arrayBuffer();
+            imageFiles.push({
+              filePath: att.filePath,
+              name: att.name || path.basename(att.filePath),
+              type: att.type || (att.filePath.endsWith('.png') ? 'image/png' : 'image/jpeg'),
+              buffer: Buffer.from(arrayBuf),
+            });
+            continue;
+          } else {
+            console.warn(`⚠️ Tải ảnh từ R2 thất bại HTTP ${fetchRes.status}: ${att.filePath}`);
+          }
+        } catch (fetchErr) {
+          console.warn('⚠️ Lỗi tải ảnh từ R2 URL:', att.filePath, fetchErr.message);
+        }
+      }
+
+      // 2. Nếu là file cục bộ trên ổ đĩa
       const filename = path.basename(att.filePath || att.name || '');
       const candidatePaths = [
         path.join(UPLOADS_DIR, filename),
@@ -792,8 +817,7 @@ export async function autoGradeSubmission(sub, optionsInput = {}) {
         path.resolve('backend/uploads', filename),
       ].filter(Boolean);
       const filePath = candidatePaths.find((p) => fs.existsSync(p));
-      const isImg = att.type?.includes('image') || /\.(png|jpe?g|webp)$/i.test(filename);
-      if (filePath && isImg) {
+      if (filePath) {
         imageFiles.push({
           filePath,
           name: att.name || filename,
