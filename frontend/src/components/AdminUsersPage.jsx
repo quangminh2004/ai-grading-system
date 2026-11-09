@@ -224,29 +224,29 @@ export default function AdminUsersPage({ showToast, currentAdmin }) {
         <div className="admin-kpi-grid">
           <div className="kpi-card">
             <div className="kpi-info">
-              <span className="kpi-num">{stats.teachers}</span>
               <span className="kpi-label">Giáo viên các trường</span>
+              <span className="kpi-num">{stats.teachers}</span>
             </div>
           </div>
 
           <div className="kpi-card">
             <div className="kpi-info">
-              <span className="kpi-num">{stats.schools}</span>
               <span className="kpi-label">Trường học liên kết</span>
+              <span className="kpi-num">{stats.schools}</span>
             </div>
           </div>
 
           <div className="kpi-card">
             <div className="kpi-info">
-              <span className="kpi-num">{stats.classes}</span>
               <span className="kpi-label">Lớp học trên hệ thống</span>
+              <span className="kpi-num">{stats.classes}</span>
             </div>
           </div>
 
           <div className="kpi-card">
             <div className="kpi-info">
-              <span className="kpi-num">{stats.submissions?.approved || 0}</span>
               <span className="kpi-label">Bài làm đã duyệt</span>
+              <span className="kpi-num">{stats.submissions?.approved || 0}</span>
             </div>
           </div>
         </div>
