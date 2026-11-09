@@ -42,7 +42,6 @@ export default function AdminStatsPage({ showToast }) {
       {stats && (
         <div className="admin-kpi-grid">
           <div className="kpi-card">
-            <div className="kpi-icon teacher" style={{ fontWeight: 'bold', fontSize: '15px' }}>GV</div>
             <div className="kpi-info">
               <span className="kpi-num">{stats.teachers}</span>
               <span className="kpi-label">Giáo viên các trường</span>
@@ -50,7 +49,6 @@ export default function AdminStatsPage({ showToast }) {
           </div>
 
           <div className="kpi-card">
-            <div className="kpi-icon school" style={{ fontWeight: 'bold', fontSize: '15px' }}>TH</div>
             <div className="kpi-info">
               <span className="kpi-num">{stats.schools}</span>
               <span className="kpi-label">Trường học liên kết</span>
@@ -58,7 +56,6 @@ export default function AdminStatsPage({ showToast }) {
           </div>
 
           <div className="kpi-card">
-            <div className="kpi-icon classes" style={{ fontWeight: 'bold', fontSize: '15px' }}>LH</div>
             <div className="kpi-info">
               <span className="kpi-num">{stats.classes}</span>
               <span className="kpi-label">Lớp học trên hệ thống</span>
@@ -66,7 +63,6 @@ export default function AdminStatsPage({ showToast }) {
           </div>
 
           <div className="kpi-card">
-            <div className="kpi-icon approved" style={{ fontWeight: 'bold', fontSize: '15px' }}>OK</div>
             <div className="kpi-info">
               <span className="kpi-num">{stats.submissions?.approved || 0}</span>
               <span className="kpi-label">Bài làm đã duyệt</span>

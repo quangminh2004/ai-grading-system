@@ -839,19 +839,19 @@ export default function GradingPage({
                 <div style={{ textAlign: 'right' }}>
                   {displayData.state === 'approved' ? (
                     <div style={{ color: '#2f5926', fontWeight: 'bold', fontSize: '13px' }}>
-                      ✓ Đã được giáo viên xác nhận
+                      Đã được giáo viên xác nhận
                     </div>
                   ) : currentScores.length > 0 ? (
                     <div style={{ color: '#8d6313', fontStyle: 'italic', fontSize: '13px' }}>
-                      ⏳ Cần giáo viên kiểm tra và bấm duyệt
+                      Cần giáo viên kiểm tra và bấm duyệt
                     </div>
                   ) : displayData.attachments?.length > 0 ? (
                     <div style={{ color: '#44643b', fontSize: '13px', fontWeight: '550' }}>
-                      📋 Đã có {displayData.attachments.length} ảnh bài làm • Bấm <b>"⚡ Chấm bài bằng AI"</b> ở trên để bắt đầu chấm
+                      Đã có {displayData.attachments.length} ảnh bài làm • Bấm <b>"Chấm bài bằng AI"</b> ở trên để bắt đầu chấm
                     </div>
                   ) : (
                     <div style={{ color: '#888', fontStyle: 'italic', fontSize: '13px' }}>
-                      📭 Chưa có bài làm hoặc chưa có điểm
+                      Chưa có bài làm hoặc chưa có điểm
                     </div>
                   )}
                 </div>
@@ -1190,7 +1190,7 @@ export default function GradingPage({
                           setIsEditingText(true);
                         }}
                       >
-                        ✏️ Sửa văn bản bài làm
+                        Sửa văn bản bài làm
                       </button>
                     ) : (
                       <div style={{ display: 'flex', gap: '6px' }}>
@@ -1200,7 +1200,7 @@ export default function GradingPage({
                           onClick={handleGradeAI}
                           disabled={gradingAI}
                         >
-                          ⚡ AI Chấm bài này
+                          AI Chấm bài này
                         </button>
                         <button
                           className="btn compact"
@@ -1233,7 +1233,7 @@ export default function GradingPage({
                       }}
                     />
                     <div style={{ marginTop: '6px', fontSize: '12px', color: '#666' }}>
-                      💡 Thầy cô có thể chỉnh sửa lỗi OCR rồi bấm <b>"⚡ AI Chấm bài này"</b> để AI phân tích lại điểm số và nhận xét.
+                      Thầy cô có thể chỉnh sửa lỗi OCR rồi bấm <b>"AI Chấm bài này"</b> để AI phân tích lại điểm số và nhận xét.
                     </div>
                   </div>
                 ) : (
@@ -1254,12 +1254,12 @@ export default function GradingPage({
                     ) : (
                       <div style={{ padding: '12px 14px', background: '#fff9ea', border: '1px solid #f0dfa8', borderRadius: '8px' }}>
                         <p style={{ margin: '0 0 6px 0', color: '#8a6214', fontWeight: '600', fontSize: '14px' }}>
-                          ℹ️ Bài làm chưa được chấm điểm
+                          Bài làm chưa được chấm điểm
                         </p>
                         <p style={{ margin: '0', fontSize: '13px', color: '#6e541b', lineHeight: '1.6' }}>
                           • Thầy cô kiểm tra các trang ảnh ở trên (có thể thêm ảnh hoặc xóa ảnh nhầm).<br />
-                          • Sau đó bấm nút <b>"⚡ Chấm bài bằng AI"</b> ở thanh công cụ phía trên để AI đọc toàn bộ ảnh và đề xuất điểm.<br />
-                          • Hoặc bấm <b>"✏️ Sửa văn bản bài làm"</b> để nhập/sửa nội dung bằng tay.
+                          • Sau đó bấm nút <b>"Chấm bài bằng AI"</b> ở thanh công cụ phía trên để AI đọc toàn bộ ảnh và đề xuất điểm.<br />
+                          • Hoặc bấm <b>"Sửa văn bản bài làm"</b> để nhập/sửa nội dung bằng tay.
                         </p>
                       </div>
                     )}
@@ -1360,7 +1360,7 @@ export default function GradingPage({
                 <h4>Hồ sơ năng lực học tập</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '14px' }}>
                   <div style={{ background: '#f5faf2', padding: '14px', borderRadius: '8px', border: '1px solid #d4e6cd' }}>
-                    <h5 style={{ color: '#2d6325', marginBottom: '6px' }}>✓ Điểm mạnh & Nét riêng</h5>
+                    <h5 style={{ color: '#2d6325', marginBottom: '6px' }}>Điểm mạnh & Nét riêng</h5>
                     <p>{cleanPedagogicalText(displayData.strength, 'Bài viết hoàn chỉnh, nét chữ rõ ràng và đúng chủ đề.')}</p>
                     {displayData.evidence && (
                       <div style={{ fontSize: '13px', color: '#556850', marginTop: '8px' }}>
@@ -1370,7 +1370,7 @@ export default function GradingPage({
                   </div>
 
                   <div style={{ background: '#fff9f0', padding: '14px', borderRadius: '8px', border: '1px solid #f2dfc2' }}>
-                    <h5 style={{ color: '#8a5c1b', marginBottom: '6px' }}>▲ Nội dung cần hỗ trợ</h5>
+                    <h5 style={{ color: '#8a5c1b', marginBottom: '6px' }}>Nội dung cần hỗ trợ</h5>
                     <p>{cleanPedagogicalText(displayData.support, 'Rèn luyện thêm cách dùng từ gợi tả và dấu câu hợp lý.')}</p>
                   </div>
                 </div>
@@ -1536,11 +1536,12 @@ export default function GradingPage({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '22px',
+                  fontSize: '14px',
+                  fontWeight: '700',
                   flexShrink: 0,
                 }}
               >
-                🗑️
+                Xóa
               </div>
               <div style={{ flex: 1 }}>
                 <h3 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#111827', fontWeight: '700' }}>
@@ -1585,7 +1586,7 @@ export default function GradingPage({
                 {subToDelete?.submissionLabel || `Bài nộp ${activeSubIdx + 1}`} — Em {current?.name} ({current?.id})
               </div>
               <div style={{ fontSize: '12px', color: '#b91c1c', marginTop: '4px' }}>
-                ⚠️ Tệp ảnh bài làm và toàn bộ điểm số của lần nộp này sẽ bị xóa khỏi hệ thống.
+                Tệp ảnh bài làm và toàn bộ điểm số của lần nộp này sẽ bị xóa khỏi hệ thống.
               </div>
             </div>
 
@@ -1625,7 +1626,7 @@ export default function GradingPage({
                   gap: '6px',
                 }}
               >
-                {deletingSub ? '⏳ Đang xóa...' : '🗑️ Xác nhận xóa'}
+                {deletingSub ? 'Đang xóa...' : 'Xác nhận xóa'}
               </button>
             </div>
           </div>
@@ -1673,11 +1674,12 @@ export default function GradingPage({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '22px',
+                  fontSize: '14px',
+                  fontWeight: '700',
                   flexShrink: 0,
                 }}
               >
-                🗑️
+                Xóa
               </div>
               <div style={{ flex: 1 }}>
                 <h3 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#111827', fontWeight: '700' }}>
@@ -1760,7 +1762,7 @@ export default function GradingPage({
                   gap: '6px',
                 }}
               >
-                {deletingAtt ? '⏳ Đang xóa...' : '🗑️ Xác nhận xóa ảnh'}
+                {deletingAtt ? 'Đang xóa...' : 'Xác nhận xóa ảnh'}
               </button>
             </div>
           </div>
@@ -1873,7 +1875,7 @@ export default function GradingPage({
                   gap: '6px',
                 }}
               >
-                ⚡ Bắt đầu chấm
+                Bắt đầu chấm
               </button>
             </div>
           </div>

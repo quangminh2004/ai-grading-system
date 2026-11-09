@@ -156,7 +156,6 @@ export default function AdminSchoolsPage({ showToast }) {
 
         <div className="admin-toolbar">
           <div className="search-box">
-            <span className="search-icon">🔍</span>
             <input
               type="text"
               placeholder="Tìm theo tên trường, mã trường, địa chỉ..."
@@ -185,7 +184,7 @@ export default function AdminSchoolsPage({ showToast }) {
               {loading ? (
                 <tr>
                   <td colSpan="6" style={{ textAlign: 'center', padding: '30px' }}>
-                    ⏳ Đang tải danh sách trường học...
+                    Đang tải danh sách trường học...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
@@ -199,7 +198,6 @@ export default function AdminSchoolsPage({ showToast }) {
                   <tr key={item._id || item.school}>
                     <td>
                       <div className="user-name-cell">
-                        <span className="avatar-bubble school">🏫</span>
                         <div>
                           <strong>{item.school}</strong>
                           <div style={{ display: 'flex', gap: '6px', marginTop: '4px', alignItems: 'center' }}>
@@ -210,7 +208,7 @@ export default function AdminSchoolsPage({ showToast }) {
                               </code>
                             )}
                             {item.address && (
-                              <small style={{ color: '#666' }}>📍 {item.address}</small>
+                              <small style={{ color: '#666' }}>{item.address}</small>
                             )}
                           </div>
                         </div>
@@ -227,7 +225,7 @@ export default function AdminSchoolsPage({ showToast }) {
                                 className="badge-tag teacher-tag"
                                 title={`Tài khoản: @${t.username}${t.phone ? ' - ' + t.phone : ''}`}
                               >
-                                👩‍🏫 {t.fullName}
+                                {t.fullName}
                               </span>
                             ))
                           ) : (
@@ -242,7 +240,7 @@ export default function AdminSchoolsPage({ showToast }) {
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                             {item.classes.map((c) => (
                               <span key={c.classId} className="badge-tag class-tag">
-                                📚 {c.label}
+                                {c.label}
                               </span>
                             ))}
                           </div>
@@ -288,7 +286,7 @@ export default function AdminSchoolsPage({ showToast }) {
                           onClick={() => handleOpenEdit(item)}
                           title="Sửa thông tin trường học"
                         >
-                          ✏️ Sửa
+                          Sửa
                         </button>
                         {item._id && (
                           <button
@@ -373,7 +371,7 @@ export default function AdminSchoolsPage({ showToast }) {
                   Hủy
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  ✓ Thêm trường học
+                  Thêm trường học
                 </button>
               </div>
             </form>

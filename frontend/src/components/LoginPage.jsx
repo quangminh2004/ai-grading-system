@@ -54,7 +54,6 @@ export default function LoginPage({ onLoginSuccess }) {
           <div className="form-group">
             <label htmlFor="login-username">Tên đăng nhập / Tài khoản</label>
             <div className="input-with-icon">
-              <span className="input-icon">👤</span>
               <input
                 id="login-username"
                 type="text"
@@ -71,7 +70,6 @@ export default function LoginPage({ onLoginSuccess }) {
           <div className="form-group">
             <label htmlFor="login-password">Mật khẩu</label>
             <div className="input-with-icon">
-              <span className="input-icon">🔒</span>
               <input
                 id="login-password"
                 type={showPassword ? 'text' : 'password'}
@@ -86,8 +84,9 @@ export default function LoginPage({ onLoginSuccess }) {
                 className="btn-toggle-pwd"
                 onClick={() => setShowPassword(!showPassword)}
                 title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                style={{ fontSize: '13px', fontWeight: '500' }}
               >
-                {showPassword ? '🙈' : '👁️'}
+                {showPassword ? 'Ẩn' : 'Hiện'}
               </button>
             </div>
           </div>
@@ -98,9 +97,9 @@ export default function LoginPage({ onLoginSuccess }) {
             disabled={loading}
           >
             {loading ? (
-              <span>⏳ Đang xác thực...</span>
+              <span>Đang xác thực...</span>
             ) : (
-              <span>Đăng nhập hệ thống ➔</span>
+              <span>Đăng nhập hệ thống</span>
             )}
           </button>
         </form>

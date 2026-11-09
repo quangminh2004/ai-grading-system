@@ -223,7 +223,6 @@ export default function AdminUsersPage({ showToast, currentAdmin }) {
       {stats && (
         <div className="admin-kpi-grid">
           <div className="kpi-card">
-            <div className="kpi-icon teacher">👩‍🏫</div>
             <div className="kpi-info">
               <span className="kpi-num">{stats.teachers}</span>
               <span className="kpi-label">Giáo viên các trường</span>
@@ -231,7 +230,6 @@ export default function AdminUsersPage({ showToast, currentAdmin }) {
           </div>
 
           <div className="kpi-card">
-            <div className="kpi-icon school">🏫</div>
             <div className="kpi-info">
               <span className="kpi-num">{stats.schools}</span>
               <span className="kpi-label">Trường học liên kết</span>
@@ -239,7 +237,6 @@ export default function AdminUsersPage({ showToast, currentAdmin }) {
           </div>
 
           <div className="kpi-card">
-            <div className="kpi-icon classes">📚</div>
             <div className="kpi-info">
               <span className="kpi-num">{stats.classes}</span>
               <span className="kpi-label">Lớp học trên hệ thống</span>
@@ -247,7 +244,6 @@ export default function AdminUsersPage({ showToast, currentAdmin }) {
           </div>
 
           <div className="kpi-card">
-            <div className="kpi-icon approved">✓</div>
             <div className="kpi-info">
               <span className="kpi-num">{stats.submissions?.approved || 0}</span>
               <span className="kpi-label">Bài làm đã duyệt</span>
@@ -278,7 +274,6 @@ export default function AdminUsersPage({ showToast, currentAdmin }) {
         {/* Toolbar: Search and Filter */}
         <div className="admin-toolbar">
           <div className="search-box">
-            <span className="search-icon">🔍</span>
             <input
               type="text"
               placeholder="Tìm theo tên cô, tài khoản, trường học..."
@@ -322,7 +317,7 @@ export default function AdminUsersPage({ showToast, currentAdmin }) {
               {loading ? (
                 <tr>
                   <td colSpan="7" style={{ textAlign: 'center', padding: '30px' }}>
-                    ⏳ Đang tải danh sách giáo viên...
+                    Đang tải danh sách giáo viên...
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
@@ -336,9 +331,6 @@ export default function AdminUsersPage({ showToast, currentAdmin }) {
                   <tr key={u._id}>
                     <td>
                       <div className="user-name-cell">
-                        <span className={`avatar-bubble ${u.role}`}>
-                          {u.role === 'admin' ? '👑' : '👩‍🏫'}
-                        </span>
                         <div>
                           <strong>{u.fullName}</strong>
                           {u.username === currentAdmin?.username && (
@@ -357,19 +349,19 @@ export default function AdminUsersPage({ showToast, currentAdmin }) {
                     </td>
                     <td>
                       <span className="school-name-text">
-                        🏫 {u.school || 'Chưa thiết lập'}
+                        {u.school || 'Chưa thiết lập'}
                       </span>
                     </td>
                     <td>
                       <div className="contact-info">
-                        {u.email && <small>✉️ {u.email}</small>}
-                        {u.phone && <small>📞 {u.phone}</small>}
+                        {u.email && <small>{u.email}</small>}
+                        {u.phone && <small>{u.phone}</small>}
                         {!u.email && !u.phone && <small className="text-muted">—</small>}
                       </div>
                     </td>
                     <td>
                       <span className={`status-pill ${u.active ? 'active' : 'locked'}`}>
-                        {u.active ? '✓ Hoạt động' : '🔒 Đã khóa'}
+                        {u.active ? 'Hoạt động' : 'Đã khóa'}
                       </span>
                     </td>
                     <td>
@@ -380,7 +372,7 @@ export default function AdminUsersPage({ showToast, currentAdmin }) {
                           onClick={() => handleOpenEdit(u)}
                           title="Chỉnh sửa thông tin giáo viên (họ tên, trường học, liên hệ)"
                         >
-                          ✏️ Sửa
+                          Sửa
                         </button>
 
                         {/* NÚT ĐẶT LẠI MẬT KHẨU */}
@@ -392,7 +384,7 @@ export default function AdminUsersPage({ showToast, currentAdmin }) {
                           }}
                           title="Đặt lại mật khẩu cho tài khoản này"
                         >
-                          🔑 Đổi MK
+                          Đổi MK
                         </button>
 
                         {/* NÚT KHÓA / MỞ KHÓA */}

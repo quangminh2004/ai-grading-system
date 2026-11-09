@@ -1989,27 +1989,12 @@ dialog::backdrop {
   background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 18px 20px;
+  padding: 18px 22px;
   display: flex;
-  align-items: center;
-  gap: 14px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
-}
-
-.kpi-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
-  font-size: 22px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
-
-.kpi-icon.teacher { background: #e0f2fe; color: #0369a1; }
-.kpi-icon.school  { background: #fef3c7; color: #b45309; }
-.kpi-icon.classes { background: #f3e8ff; color: #7e22ce; }
-.kpi-icon.approved{ background: #dcfce7; color: #15803d; }
 
 .kpi-info {
   display: flex;
@@ -2017,16 +2002,17 @@ dialog::backdrop {
 }
 
 .kpi-num {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 700;
   color: var(--ink);
   line-height: 1.2;
+  margin-bottom: 4px;
 }
 
 .kpi-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
-  margin-top: 2px;
+  font-weight: 500;
 }
 
 .admin-table-card {
