@@ -42,10 +42,10 @@ export const reviewSubmission = async (req, res) => {
       submissionId, // ID cụ thể của bài muốn duyệt (optional)
     } = req.body;
 
-    // Nếu có submissionId cụ thể thì duyệt bài đó, không thì lấy bài mới nhất
+    // Nếu có submissionId cụ thể thì duyệt bài đó (chỉ trong đúng lớp/học sinh), không thì lấy bài mới nhất
     let sub = null;
     if (submissionId && mongoose.Types.ObjectId.isValid(submissionId)) {
-      sub = await Submission.findById(submissionId);
+      sub = await Submission.findOne({ _id: submissionId, classId, studentId });
     }
     if (!sub) {
       // Lấy bài suggested mới nhất, hoặc bài mới nhất
@@ -172,7 +172,7 @@ export const addAttachmentsToSubmission = async (req, res) => {
 
     let sub = null;
     if (submissionId && mongoose.Types.ObjectId.isValid(submissionId)) {
-      sub = await Submission.findById(submissionId);
+      sub = await Submission.findOne({ _id: submissionId, classId, studentId });
     }
     if (!sub) {
       sub = await Submission.findOne({ classId, studentId }).sort({ submissionNumber: -1 });
@@ -226,7 +226,7 @@ export const deleteAttachmentFromSubmission = async (req, res) => {
 
     let sub = null;
     if (submissionId && mongoose.Types.ObjectId.isValid(submissionId)) {
-      sub = await Submission.findById(submissionId);
+      sub = await Submission.findOne({ _id: submissionId, classId, studentId });
     }
     if (!sub) {
       sub = await Submission.findOne({ classId, studentId }).sort({ submissionNumber: -1 });
@@ -476,7 +476,7 @@ export const retrySubmission = async (req, res) => {
 
     let sub = null;
     if (submissionId && mongoose.Types.ObjectId.isValid(submissionId)) {
-      sub = await Submission.findById(submissionId);
+      sub = await Submission.findOne({ _id: submissionId, classId, studentId });
     }
     if (!sub) {
       sub = await Submission.findOne({
@@ -567,13 +567,10 @@ export const deleteSubmission = async (req, res) => {
   try {
     const { classId, submissionId, studentId } = req.params;
 
-    // Tìm bài nộp theo submissionId (hoặc studentId nếu không có submissionId)
+    // Tìm bài nộp theo submissionId (chỉ trong lớp hiện tại), hoặc bài mới nhất của học sinh
     let sub = null;
     if (submissionId && mongoose.Types.ObjectId.isValid(submissionId)) {
-      sub = await Submission.findById(submissionId);
-    }
-    if (!sub && submissionId) {
-      sub = await Submission.findOne({ classId, submissionId });
+      sub = await Submission.findOne({ _id: submissionId, classId });
     }
     if (!sub && studentId) {
       sub = await Submission.findOne({ classId, studentId }).sort({ submissionNumber: -1 });

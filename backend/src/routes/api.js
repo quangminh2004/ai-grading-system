@@ -45,7 +45,7 @@ import {
   deleteSchool,
   getSchoolsSummary,
 } from '../controllers/schoolController.js';
-import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js';
+import { requireAuth, requireAdmin, requireClassAccess } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -93,30 +93,36 @@ router.get('/admin/stats', requireAuth, requireAdmin, getAdminStats);
 router.get('/admin/schools-summary', requireAuth, requireAdmin, getSchoolsSummary);
 
 // ==================== LỚP HỌC & HỌC SINH ====================
-router.get('/classes', optionalAuth, getClasses);
-router.post('/classes', optionalAuth, createClass);
-router.delete('/classes/:classId', optionalAuth, deleteClass);
-router.get('/classes/:classId/full', optionalAuth, getClassDetails);
-router.post('/classes/:classId/students', optionalAuth, addStudent);
-router.post('/classes/:classId/roster', optionalAuth, importRoster);
+// Tất cả route lớp học bắt buộc đăng nhập; route có :classId còn kiểm tra quyền với lớp đó
+// (requireAuth/requireClassAccess đặt TRƯỚC multer để không ghi tệp khi chưa xác thực)
+const classAccess = [requireAuth, requireClassAccess];
+
+router.get('/classes', requireAuth, getClasses);
+router.post('/classes', requireAuth, createClass);
+router.delete('/classes/:classId', ...classAccess, deleteClass);
+router.get('/classes/:classId/full', ...classAccess, getClassDetails);
+router.post('/classes/:classId/students', ...classAccess, addStudent);
+router.post('/classes/:classId/roster', ...classAccess, importRoster);
 
 // ==================== TIÊU CHÍ & BÀI TẬP ====================
-router.get('/assignment', getAssignment);
+router.get('/assignment', requireAuth, getAssignment);
 
 // ==================== BÀI NỘP & CHẤM/DUYỆT ====================
-router.get('/ai/providers-status', optionalAuth, getAiProvidersStatus);
+router.get('/ai/providers-status', requireAuth, getAiProvidersStatus);
 router.get('/admin/ai-providers/status', requireAuth, requireAdmin, getAiProvidersStatus);
 
 router.post(
   '/classes/:classId/submissions/receive-batch',
+  ...classAccess,
   upload.array('files', 20),
   receiveUploadedFiles
 );
-router.post('/classes/:classId/submissions/grade-all-ai', optionalAuth, gradeAllSubmissionsWithAI);
-router.post('/classes/:classId/submissions/retry-failed', optionalAuth, retryAllFailedSubmissions);
+router.post('/classes/:classId/submissions/grade-all-ai', ...classAccess, gradeAllSubmissionsWithAI);
+router.post('/classes/:classId/submissions/retry-failed', ...classAccess, retryAllFailedSubmissions);
 
 router.post(
   '/classes/:classId/submissions/:studentId/upload',
+  ...classAccess,
   upload.array('files', 10),
   uploadStudentSubmission
 );
@@ -124,21 +130,22 @@ router.post(
 // Quản lý đính kèm ảnh (Thêm / Xóa ảnh) - PHẢI ĐẶT TRƯỚC wildcard /:submissionId
 router.post(
   '/classes/:classId/submissions/:studentId/attachments',
+  ...classAccess,
   upload.array('files', 10),
   addAttachmentsToSubmission
 );
 router.delete(
   '/classes/:classId/submissions/:studentId/attachments',
-  optionalAuth,
+  ...classAccess,
   deleteAttachmentFromSubmission
 );
 
-router.patch('/classes/:classId/submissions/:studentId/review', optionalAuth, reviewSubmission);
-router.post('/classes/:classId/submissions/:studentId/grade-ai', optionalAuth, gradeSubmissionWithAI);
-router.post('/classes/:classId/submissions/:studentId/retry', optionalAuth, retrySubmission);
+router.patch('/classes/:classId/submissions/:studentId/review', ...classAccess, reviewSubmission);
+router.post('/classes/:classId/submissions/:studentId/grade-ai', ...classAccess, gradeSubmissionWithAI);
+router.post('/classes/:classId/submissions/:studentId/retry', ...classAccess, retrySubmission);
 
 // Xóa bài nộp (Wildcard /:submissionId) - PHẢI ĐẶT SAU CÙNG để không nuốt route /attachments
-router.delete('/classes/:classId/submissions/:studentId/:submissionId', optionalAuth, deleteSubmission);
-router.delete('/classes/:classId/submissions/:submissionId', optionalAuth, deleteSubmission);
+router.delete('/classes/:classId/submissions/:studentId/:submissionId', ...classAccess, deleteSubmission);
+router.delete('/classes/:classId/submissions/:submissionId', ...classAccess, deleteSubmission);
 
 export default router;

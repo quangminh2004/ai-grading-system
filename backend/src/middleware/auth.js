@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
+import { Class } from '../models/Class.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'thanh_lan_ai_grading_jwt_secret_key_2026_super_secure';
 
@@ -59,6 +60,40 @@ export const requireAdmin = (req, res, next) => {
     });
   }
   next();
+};
+
+// Kiểm tra người dùng có quyền với lớp học hay không
+// - Admin: toàn quyền
+// - Giáo viên: lớp thuộc trường của mình, lớp do mình tạo, hoặc lớp được phân công
+export const canAccessClass = (user, classroom) => {
+  if (!user || !classroom) return false;
+  if (user.role === 'admin') return true;
+  if (user.role !== 'teacher') return false;
+  if (classroom.teacherUsername && classroom.teacherUsername === user.username) return true;
+  if (Array.isArray(user.assignedClasses) && user.assignedClasses.includes(classroom.classId)) return true;
+  if (user.school && classroom.school && classroom.school === user.school) return true;
+  return false;
+};
+
+// Middleware kiểm tra quyền truy cập lớp theo req.params.classId (dùng SAU requireAuth)
+export const requireClassAccess = async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const classroom = await Class.findOne({ classId }).lean();
+    if (!classroom) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+    if (!canAccessClass(req.user, classroom)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền truy cập lớp học này.',
+      });
+    }
+    req.classroom = classroom;
+    next();
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
 };
 
 // Middleware tùy chọn (nếu có token thì gán req.user, không có thì vẫn cho qua)

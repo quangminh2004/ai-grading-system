@@ -5,29 +5,24 @@ import { Assignment } from '../models/Assignment.js';
 import { isValidVietnameseText } from '../services/aiGradingService.js';
 
 // GET /api/classes
+// Admin: xem tất cả (có thể lọc ?school=). Giáo viên: chỉ lớp thuộc trường mình, lớp mình tạo hoặc được phân công.
 export const getClasses = async (req, res) => {
   try {
     const { school } = req.query;
-    const filter = {};
+    let filter = {};
 
-    if (school) {
-      filter.school = school;
-    } else if (req.user && req.user.role === 'teacher') {
-      // Nếu là giáo viên, ưu tiên hiển thị lớp của trường cô hoặc lớp do cô quản lý
-      if (req.user.school) {
-        filter.$or = [
-          { school: req.user.school },
-          { teacherUsername: req.user.username },
-        ];
+    if (req.user.role === 'admin') {
+      if (school) filter.school = school;
+    } else {
+      const or = [{ teacherUsername: req.user.username }];
+      if (req.user.school) or.push({ school: req.user.school });
+      if (Array.isArray(req.user.assignedClasses) && req.user.assignedClasses.length) {
+        or.push({ classId: { $in: req.user.assignedClasses } });
       }
+      filter = { $or: or };
     }
 
-    let classes = await Class.find(filter).sort({ classId: 1 }).lean();
-
-    // Nếu bộ lọc trường học của giáo viên chưa có lớp nào, trả về tất cả lớp để không bị rỗng
-    if (!classes.length && req.user && req.user.role === 'teacher') {
-      classes = await Class.find().sort({ classId: 1 }).lean();
-    }
+    const classes = await Class.find(filter).sort({ classId: 1 }).lean();
 
     res.json({ success: true, classes });
   } catch (error) {
@@ -48,14 +43,17 @@ export const createClass = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mã lớp đã tồn tại' });
     }
 
-    const schoolName = (school || (req.user && req.user.school) || 'Trường Tiểu học Thanh Lân').trim();
+    // Giáo viên chỉ được tạo lớp trong trường của mình; Admin được chọn trường
+    const schoolName = req.user.role === 'admin'
+      ? (school || req.user.school || 'Trường Tiểu học Thanh Lân').trim()
+      : (req.user.school || 'Trường Tiểu học Thanh Lân').trim();
 
     const newClass = await Class.create({
       classId: cleanId,
       label: label.trim(),
       grade: grade || '4',
       school: schoolName,
-      teacherUsername: req.user ? req.user.username : '',
+      teacherUsername: req.user.username,
     });
 
     res.status(201).json({ success: true, class: newClass });
