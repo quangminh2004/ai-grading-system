@@ -54,7 +54,8 @@ export default function RubricPage({ classroom, onRubricSaved, showToast }) {
 
   const addItem = () => {
     if (draft.length >= RUBRIC_MAX_ITEMS) return;
-    setDraft((prev) => [...prev, { name: '', max: '1', desc: '' }]);
+    const remaining = Math.max(0, 10 - draftTotal);
+    setDraft((prev) => [...prev, { name: '', max: String(remaining > 0 ? remaining : 1), desc: '' }]);
   };
 
   const removeItem = (i) => {
@@ -79,6 +80,9 @@ export default function RubricPage({ classroom, onRubricSaved, showToast }) {
       if (!draft[i].name.trim()) return `Tiêu chí ${i + 1} chưa có tên.`;
       const m = Number(draft[i].max);
       if (!Number.isFinite(m) || m <= 0) return `Điểm tối đa của tiêu chí ${i + 1} phải lớn hơn 0.`;
+    }
+    if (Math.round(draftTotal * 100) !== 1000) {
+      return `Tổng điểm các tiêu chí phải bằng đúng 10 điểm (hiện tại: ${fmtScore(draftTotal)} điểm).`;
     }
     return null;
   };
@@ -164,6 +168,11 @@ export default function RubricPage({ classroom, onRubricSaved, showToast }) {
               ? `${draft.length} tiêu chí (Tổng ${fmtScore(draftTotal)} điểm)`
               : `${rubric.length} tiêu chí đánh giá bài làm học sinh (Tổng ${fmtScore(totalMax)} điểm)`}
           </h3>
+          {editing && Math.abs(draftTotal - 10) > 0.001 && (
+            <span style={{ color: '#c0392b', fontSize: '13px', fontWeight: 600, background: '#fdf0ee', border: '1px solid #f5c6c0', borderRadius: '6px', padding: '4px 10px' }}>
+              ⚠ Tổng hiện tại {fmtScore(draftTotal)}đ — cần đúng 10đ để lưu
+            </span>
+          )}
           {editing && (
             <button className="btn outline compact" onClick={loadDefaultIntoDraft} type="button">
               Nạp lại bộ mặc định
