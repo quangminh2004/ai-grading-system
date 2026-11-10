@@ -220,16 +220,24 @@ export default function GradingPage({
 
   const handleGradeAI = async () => {
     if (!current || !currentClassId) return;
+
+    // Kiểm tra xem bài hiện tại có ảnh hoặc văn bản chưa
+    const hasContent = (displayData.attachments && displayData.attachments.length > 0) || Boolean(displayData.text?.trim()) || Boolean(editedText?.trim());
+    if (!hasContent) {
+      showToast?.(`⚠️ Em ${current.name} (${current.id}) chưa có ảnh bài làm. Thầy cô vui lòng tải ảnh vào trước khi bấm chấm AI.`);
+      return;
+    }
+
     setGradingAI(true);
-    showToast?.('⏳ AI đang đọc bài làm viết tay và chấm điểm...');
+    showToast?.(`⏳ AI đang đọc bài làm viết tay của em ${current.name} (${current.id}) và chấm điểm...`);
     try {
       const textToSend = isEditingText ? editedText : (displayData.text || undefined);
       const submissionIdToSend = activeSub?._id;
 
-      // forceReOcr = true để AI đọc lại toàn bộ ảnh hiện có và chấm
+      // forceReOcr = true để AI đọc lại toàn bộ ảnh hiện có và chấm DUY NHẤT bài này của học sinh này
       const res = await api.gradeWithAI(currentClassId, current.id, textToSend, submissionIdToSend, true);
       if (res.success) {
-        showToast?.(res.message || '✓ AI đã chấm và đề xuất điểm bài làm thành công!');
+        showToast?.(res.message || `✓ AI đã chấm và đề xuất điểm bài làm của em ${current.name} thành công!`);
         setIsEditingText(false);
         if (onRefreshClass) await onRefreshClass(currentClassId);
       } else {

@@ -338,9 +338,8 @@ export const receiveUploadedFiles = async (req, res) => {
 
       console.log(`📥 Tạo bài nộp ${submissionNumber} cho ${studentId} — file: ${file.originalname} → ${file.filename}`);
 
-      // TỰ ĐỘNG CHẤM & ĐỀ XUẤT ĐIỂM BẰNG AI
-      await autoGradeSubmission(sub);
-
+      // LƯU BÀI NỘP Ở TRẠNG THÁI MỚI 'new' (CHỜ GIÁO VIÊN BẤM CHẤM TỪNG EM)
+      // Tuyệt đối KHÔNG tự động gọi autoGradeSubmission cho cả danh sách ở đây
       await sub.save();
       processed++;
     }
@@ -354,7 +353,7 @@ export const receiveUploadedFiles = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Đã tiếp nhận ${processed} bài nộp mới và AI đã hoàn tất chấm, đề xuất điểm!`,
+      message: `Đã tiếp nhận ${processed} bài nộp mới! Bài đã được lưu an toàn. Thầy cô bấm vào từng học sinh rồi chọn "Chấm bài bằng AI" để bắt đầu chấm.`,
     });
   } catch (error) {
     console.error('Lỗi receive-batch:', error);
@@ -363,7 +362,7 @@ export const receiveUploadedFiles = async (req, res) => {
 };
 
 // POST /api/classes/:classId/submissions/:studentId/grade-ai
-// Kích hoạt AI chấm điểm — theo submissionId cụ thể hoặc bài mới nhất (hỗ trợ forceReOcr)
+// Kích hoạt AI chấm điểm — CHỈ CHẤM DUY NHẤT BÀI NÀY CỦA HỌC SINH NÀY (hỗ trợ forceReOcr)
 export const gradeSubmissionWithAI = async (req, res) => {
   try {
     const { classId, studentId } = req.params;
@@ -371,12 +370,16 @@ export const gradeSubmissionWithAI = async (req, res) => {
 
     let sub = null;
     if (submissionId && mongoose.Types.ObjectId.isValid(submissionId)) {
-      sub = await Submission.findById(submissionId);
+      sub = await Submission.findOne({ _id: submissionId, classId, studentId });
     }
     if (!sub) {
-      // Lấy bài suggested/needs_review mới nhất hoặc bài mới nhất chưa duyệt
+      // Lấy bài chưa duyệt mới nhất của đúng học sinh này
       sub = await Submission.findOne({ classId, studentId, state: { $in: ['new', 'suggested', 'needs_review', 'provider_unavailable'] } })
         .sort({ submissionNumber: -1 });
+    }
+    if (!sub) {
+      // Fallback bài mới nhất của đúng học sinh này
+      sub = await Submission.findOne({ classId, studentId }).sort({ submissionNumber: -1 });
     }
 
     // Nếu không có bài và cũng không có text gửi lên → báo lỗi rõ ràng
@@ -387,7 +390,7 @@ export const gradeSubmissionWithAI = async (req, res) => {
       });
     }
 
-    // Nếu có text nhưng không có submission → tạo mới
+    // Nếu có text nhưng không có submission → tạo mới cho đúng học sinh này
     if (!sub) {
       const existingCount = await Submission.countDocuments({ classId, studentId });
       sub = new Submission({
@@ -404,7 +407,7 @@ export const gradeSubmissionWithAI = async (req, res) => {
     if (!text && !sub.text?.trim() && (!sub.attachments || sub.attachments.length === 0)) {
       return res.status(400).json({
         success: false,
-        message: 'Chưa có bài làm để chấm. Vui lòng upload ảnh bài hoặc nhập văn bản trước.',
+        message: 'Chưa có tệp ảnh bài làm để chấm. Vui lòng upload ảnh bài trước.',
       });
     }
 
@@ -412,6 +415,7 @@ export const gradeSubmissionWithAI = async (req, res) => {
       sub.text = text;
     }
 
+    // CHỈ CHẤM DUY NHẤT BÀI NỘP CỦA HỌC SINH NÀY
     await autoGradeSubmission(sub, Boolean(forceReOcr));
     await sub.save();
 
@@ -419,8 +423,8 @@ export const gradeSubmissionWithAI = async (req, res) => {
     res.json({
       success: true,
       message: hasScores
-        ? 'AI đã chấm và đề xuất điểm bài làm thành công!'
-        : 'Đã lưu bài làm. Cô giáo có thể bấm "✎ Chỉnh sửa & Duyệt bài" để chấm điểm.',
+        ? `✓ AI đã chấm và đề xuất điểm bài làm của em ${studentId} thành công!`
+        : `Đã lưu bài làm của em ${studentId}. Thầy cô có thể bấm "✎ Chỉnh sửa & Duyệt bài" để chấm điểm.`,
       submission: sub,
     });
   } catch (error) {

@@ -362,14 +362,14 @@ export default function IntakePage({
 
               <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '13px', color: '#556550' }}>
-                  Sau khi tải lên, AI sẽ tự động đọc tệp bằng OCR, phân tích ngôn ngữ và đề xuất điểm ngay lập tức.
+                  Tệp bài làm được lưu an toàn. Thầy cô vào trang "Chấm, chữa bài" để bấm "Chấm bài bằng AI" cho từng em.
                 </span>
                 <button
                   className="btn primary"
                   disabled={uploading}
                   onClick={handleUpload}
                 >
-                  {uploading ? 'Đang tiếp nhận & AI đang chấm...' : 'Tiếp nhận & AI Chấm ngay'}
+                  {uploading ? 'Đang tiếp nhận bài làm...' : 'Tiếp nhận bài làm'}
                 </button>
               </div>
             </div>
