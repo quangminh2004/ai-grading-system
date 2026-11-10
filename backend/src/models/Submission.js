@@ -12,6 +12,15 @@ const attachmentSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const rubricItemSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    max: { type: Number, required: true },
+    desc: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
 const logSchema = new mongoose.Schema(
   {
     at: { type: Date, default: Date.now },
@@ -90,6 +99,11 @@ const submissionSchema = new mongoose.Schema(
     scores: {
       type: [Number],
       default: [],
+    },
+    // Ảnh chụp bộ tiêu chí tại thời điểm chấm (để điểm cũ không lệch khi lớp đổi tiêu chí)
+    rubric: {
+      type: [rubricItemSchema],
+      default: undefined,
     },
     explain: {
       type: [String],

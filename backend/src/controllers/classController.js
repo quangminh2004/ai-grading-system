@@ -3,6 +3,7 @@ import { Student } from '../models/Student.js';
 import { Submission } from '../models/Submission.js';
 import { Assignment } from '../models/Assignment.js';
 import { isValidVietnameseText } from '../services/aiGradingService.js';
+import { getEffectiveRubric, getSubmissionRubric, validateRubric } from '../config/rubric.js';
 
 // GET /api/classes
 // Admin: xem tất cả (có thể lọc ?school=). Giáo viên: chỉ lớp thuộc trường mình, lớp mình tạo hoặc được phân công.
@@ -153,6 +154,7 @@ export const getClassDetails = async (req, res) => {
     }
 
     // Gộp submissions vào từng học sinh — mỗi học sinh có mảng submissions[]
+    const classRubric = getEffectiveRubric(classroom);
     const mergedStudents = students.map((std) => {
       const subs = allSubmissions.filter((s) => s.studentId === std.studentId);
 
@@ -169,6 +171,7 @@ export const getClassDetails = async (req, res) => {
         // Dữ liệu từ bài active (để tương thích giao diện cũ)
         submissionId: activeSub._id,
         state: activeSub.state || 'new',
+        rubric: getSubmissionRubric(activeSub, classRubric),
         text: activeSub.text || '',
         scores: activeSub.scores || [],
         explain: activeSub.explain || [],
@@ -191,6 +194,7 @@ export const getClassDetails = async (req, res) => {
           submissionNumber: s.submissionNumber || 1,
           submissionLabel: s.submissionLabel || `Bài nộp ${s.submissionNumber || 1}`,
           state: s.state,
+          rubric: getSubmissionRubric(s, classRubric),
           scores: s.scores || [],
           teacherScores: s.teacherScores || null,
           text: s.text || '',
@@ -211,8 +215,50 @@ export const getClassDetails = async (req, res) => {
 
     res.json({
       success: true,
-      classroom,
+      classroom: { ...classroom, rubric: classRubric, hasCustomRubric: Boolean(classroom.rubric?.length) },
       students: mergedStudents,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// PUT /api/classes/:classId/rubric
+// Giáo viên tùy chỉnh bộ tiêu chí đánh giá của lớp (thêm/bớt/sửa tiêu chí, đổi điểm tối đa)
+// Gửi { reset: true } để quay về bộ tiêu chí mặc định
+export const updateClassRubric = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { rubric, reset } = req.body || {};
+
+    let newRubric = [];
+    if (!reset) {
+      const result = validateRubric(rubric);
+      if (result.error) {
+        return res.status(400).json({ success: false, message: result.error });
+      }
+      newRubric = result.rubric;
+    }
+
+    const updated = await Class.findOneAndUpdate(
+      { classId },
+      { $set: { rubric: newRubric } },
+      { new: true }
+    ).lean();
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    const effective = getEffectiveRubric(updated);
+    const totalMax = effective.reduce((s, r) => s + r.max, 0);
+    res.json({
+      success: true,
+      message: reset
+        ? '✓ Đã khôi phục bộ tiêu chí mặc định.'
+        : `✓ Đã lưu ${effective.length} tiêu chí đánh giá (tổng ${totalMax} điểm).`,
+      rubric: effective,
+      hasCustomRubric: newRubric.length > 0,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

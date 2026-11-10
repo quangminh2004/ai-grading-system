@@ -1,4 +1,5 @@
 import React from 'react';
+import { getRubric, rubricMaxTotal } from '../utils/rubric';
 
 const total = (a) => (a || []).reduce((s, n) => s + Number(n), 0);
 const fmt = (n) => Number(n).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
@@ -21,6 +22,9 @@ export default function OverviewPage({ classroom, students, setPage, onSelectStu
   const approved = students.filter((s) => s.state === 'approved');
   const pending = students.filter((s) => s.state === 'suggested');
   const unsubmitted = students.filter((s) => s.state === 'new');
+
+  const classRubric = getRubric(classroom?.rubric);
+  const classMaxTotal = rubricMaxTotal(classRubric);
 
   const avgScore = approved.length
     ? fmt(approved.reduce((a, s) => a + total(s.teacherScores || s.scores), 0) / approved.length)
@@ -78,7 +82,7 @@ export default function OverviewPage({ classroom, students, setPage, onSelectStu
           <div className="stat-top">Điểm TB đã duyệt <span className="stat-icon">↗</span></div>
           <div className="stat-value">
             {avgScore}
-            <span style={{ fontSize: '12px', color: '#a0ac96', letterSpacing: 0 }}> /10</span>
+            <span style={{ fontSize: '12px', color: '#a0ac96', letterSpacing: 0 }}> /{fmt(classMaxTotal)}</span>
           </div>
           <small>Chỉ tính bài đã được duyệt</small>
         </div>
@@ -181,20 +185,17 @@ export default function OverviewPage({ classroom, students, setPage, onSelectStu
               </strong>
             </div>
 
-            <h4 style={{ marginBottom: '10px' }}>4 Tiêu chí đánh giá chuẩn (Tổng 10 điểm)</h4>
+            <h4 style={{ marginBottom: '10px' }}>
+              {classRubric.length} tiêu chí đánh giá (Tổng {fmt(classMaxTotal)} điểm)
+            </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {[
-                { name: '1. Nội dung & chi tiết', max: 4, desc: 'Đúng trọng tâm đề bài; có chi tiết, hình ảnh cụ thể và sinh động.' },
-                { name: '2. Sắp xếp ý & bố cục', max: 2, desc: 'Bố cục rõ ràng, các câu và đoạn kết nối mạch lạc, hợp lý.' },
-                { name: '3. Từ ngữ & diễn đạt', max: 2, desc: 'Từ ngữ phù hợp, gợi cảm; câu rõ nghĩa; diễn đạt tự nhiên, sáng tạo.' },
-                { name: '4. Chính tả & dấu câu', max: 2, desc: 'Viết đúng chính tả, đúng quy tắc viết hoa và dấu câu.' },
-              ].map((c, i) => (
+              {classRubric.map((c, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderRadius: '6px', border: '1px solid #e3e8dc' }}>
                   <div>
-                    <strong>{c.name}</strong>
+                    <strong>{i + 1}. {c.name}</strong>
                     <div style={{ fontSize: '12px', color: '#687560' }}>{c.desc}</div>
                   </div>
-                  <b style={{ color: '#3d6333', fontSize: '15px' }}>{c.max}đ</b>
+                  <b style={{ color: '#3d6333', fontSize: '15px' }}>{fmt(c.max)}đ</b>
                 </div>
               ))}
             </div>

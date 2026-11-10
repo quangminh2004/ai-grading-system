@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
+import { getRubric, fmtScore } from '../utils/rubric';
 
-const rubric = [
-  { name: 'Nội dung & chi tiết', max: 4 },
-  { name: 'Sắp xếp ý', max: 2 },
-  { name: 'Từ ngữ & diễn đạt', max: 2 },
-  { name: 'Chính tả & dấu câu', max: 2 },
-];
+export default function EditModal({ student, classRubric, onClose, onSave }) {
+  // Bài đã chấm theo bộ tiêu chí nào thì sửa theo bộ đó; bài chưa chấm dùng tiêu chí hiện tại của lớp
+  const rubric = getRubric(student.rubric || classRubric);
+  const maxTotal = rubric.reduce((s, r) => s + Number(r.max), 0);
 
-export default function EditModal({ student, onClose, onSave }) {
-  const initialScores = student.teacherScores || student.scores || [3.5, 1.5, 1.5, 1.5];
-  const [scores, setScores] = useState([...initialScores]);
+  const existing = student.teacherScores?.length ? student.teacherScores : student.scores;
+  const initialScores = rubric.map((r, i) =>
+    existing?.length === rubric.length ? Number(existing[i]) || 0 : 0
+  );
+  const [scores, setScores] = useState(initialScores);
   const [feedback, setFeedback] = useState(
     student.teacherFeedback || student.feedback || ''
   );
@@ -88,10 +89,10 @@ export default function EditModal({ student, onClose, onSave }) {
           </button>
         </div>
 
-        {/* 4 Rubric inputs */}
+        {/* Rubric inputs */}
         <div style={{ marginBottom: '18px' }}>
           <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>
-            Chấm điểm theo 4 tiêu chí:
+            Chấm điểm theo {rubric.length} tiêu chí:
           </label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             {rubric.map((r, i) => (
@@ -104,10 +105,11 @@ export default function EditModal({ student, onClose, onSave }) {
                   border: '1px solid #e2e8dc',
                 }}
               >
-                <div style={{ fontSize: '13px', color: '#556550', marginBottom: '4px' }}>
-                  {r.name} (Tối đa {r.max}đ)
-                </div>
+                <label htmlFor={`score-${i}`} style={{ fontSize: '13px', color: '#556550', marginBottom: '4px', display: 'block' }}>
+                  {r.name} (Tối đa {fmtScore(r.max)}đ)
+                </label>
                 <input
+                  id={`score-${i}`}
                   type="number"
                   step="0.25"
                   min="0"
@@ -136,7 +138,7 @@ export default function EditModal({ student, onClose, onSave }) {
               color: '#2b5120',
             }}
           >
-            Tổng điểm: {totalScore.toFixed(2)} / 10
+            Tổng điểm: {totalScore.toFixed(2)} / {fmtScore(maxTotal)}
           </div>
         </div>
 

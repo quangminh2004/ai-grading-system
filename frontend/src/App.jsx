@@ -3,6 +3,7 @@ import './style.css';
 import './intake.css';
 
 import { api } from './api';
+import { getRubric, rubricMaxTotal } from './utils/rubric';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import OverviewPage from './components/OverviewPage';
@@ -292,29 +293,30 @@ export default function App() {
       return;
     }
 
+    // Cột điểm theo bộ tiêu chí hiện tại của lớp
+    const classRubric = getRubric(classroom?.rubric);
+    const classMax = rubricMaxTotal(classRubric);
+    const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+
     const headers = [
       'Mã HS',
       'Họ và tên',
-      'Điểm Nội dung (/4)',
-      'Điểm Bố cục (/2)',
-      'Điểm Diễn đạt (/2)',
-      'Điểm Chính tả (/2)',
-      'Tổng điểm (/10)',
+      ...classRubric.map((r) => csvCell(`${r.name} (/${r.max})`)),
+      `Tổng điểm (/${classMax})`,
       'Nhận xét của giáo viên',
     ];
 
     const rows = approved.map((s) => {
-      const sc = s.teacherScores || s.scores || [0, 0, 0, 0];
+      const sc = s.teacherScores || s.scores || [];
       const sum = sc.reduce((a, b) => a + Number(b), 0);
+      // Bài chấm theo bộ tiêu chí khác số lượng → không xếp vào cột chi tiết để tránh lệch
+      const sameShape = sc.length === classRubric.length;
       return [
         s.id,
-        `"${s.name.replace(/"/g, '""')}"`,
-        sc[0] ?? '',
-        sc[1] ?? '',
-        sc[2] ?? '',
-        sc[3] ?? '',
+        csvCell(s.name),
+        ...classRubric.map((_, i) => (sameShape ? sc[i] ?? '' : '')),
         sum,
-        `"${(s.teacherFeedback || s.feedback || '').replace(/"/g, '""')}"`,
+        csvCell(s.teacherFeedback || s.feedback || ''),
       ].join(',');
     });
 
@@ -418,6 +420,7 @@ export default function App() {
                 {page === 'grading' && (
                   <GradingPage
                     students={students}
+                    classRubric={classroom?.rubric}
                     selectedId={selectedStudentId}
                     onSelectStudent={setSelectedStudentId}
                     onOpenEditModal={(std) => setEditStudent(std)}
@@ -450,7 +453,13 @@ export default function App() {
                   <ProfilesPage classroom={classroom} students={students} />
                 )}
 
-                {page === 'rubric' && <RubricPage />}
+                {page === 'rubric' && (
+                  <RubricPage
+                    classroom={classroom}
+                    showToast={showToast}
+                    onRubricSaved={() => loadClassDetails(currentClassId)}
+                  />
+                )}
               </>
             )
           )}
@@ -461,6 +470,7 @@ export default function App() {
       {!isAdmin && editStudent && (
         <EditModal
           student={editStudent}
+          classRubric={classroom?.rubric}
           onClose={() => setEditStudent(null)}
           onSave={handleSaveReview}
         />

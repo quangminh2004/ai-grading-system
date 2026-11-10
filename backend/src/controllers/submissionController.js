@@ -7,6 +7,7 @@ import { Student } from '../models/Student.js';
 import { autoGradeSubmission } from '../services/aiGradingService.js';
 import { aiProviderTracker } from '../services/aiErrorHandler.js';
 import { uploadBufferToR2, deleteFromR2, isR2Configured } from '../services/r2StorageService.js';
+import { getEffectiveRubric, getSubmissionRubric, normalizeScores } from '../config/rubric.js';
 
 // GET /api/assignment
 export const getAssignment = async (req, res) => {
@@ -57,8 +58,28 @@ export const reviewSubmission = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy bài nộp' });
     }
 
+    // Kiểm tra điểm giáo viên nhập theo đúng bộ tiêu chí của bài (hoặc bộ tiêu chí hiện tại của lớp)
+    let normalizedTeacherScores;
+    if (Array.isArray(teacherScores)) {
+      const classRubric = getEffectiveRubric(req.classroom);
+      const subRubric = getSubmissionRubric(sub, classRubric);
+      let targetRubric = null;
+      if (teacherScores.length === subRubric.length) targetRubric = subRubric;
+      else if (teacherScores.length === classRubric.length) targetRubric = classRubric;
+
+      normalizedTeacherScores = targetRubric ? normalizeScores(teacherScores, targetRubric) : null;
+      if (!normalizedTeacherScores) {
+        return res.status(400).json({
+          success: false,
+          message: 'Số điểm không khớp với số tiêu chí đánh giá. Vui lòng tải lại trang và chấm lại.',
+        });
+      }
+      sub.rubric = targetRubric;
+    }
+
     if (state !== undefined) sub.state = state;
-    if (teacherScores !== undefined) sub.teacherScores = teacherScores;
+    if (normalizedTeacherScores !== undefined) sub.teacherScores = normalizedTeacherScores;
+    else if (teacherScores === null) sub.teacherScores = null;
     if (teacherFeedback !== undefined) sub.teacherFeedback = teacherFeedback;
     if (reason !== undefined) sub.reason = reason;
     if (text !== undefined) sub.text = text;
@@ -74,7 +95,7 @@ export const reviewSubmission = async (req, res) => {
     const logEntry = {
       at: new Date(),
       action: state === 'approved' ? 'approved' : 'edited',
-      scores: teacherScores || sub.scores,
+      scores: normalizedTeacherScores || sub.scores,
       reason: reason || (state === 'approved' ? 'Giáo viên duyệt kết quả' : 'Chỉnh sửa'),
     };
     sub.logs.push(logEntry);
@@ -415,8 +436,8 @@ export const gradeSubmissionWithAI = async (req, res) => {
       sub.text = text;
     }
 
-    // CHỈ CHẤM DUY NHẤT BÀI NỘP CỦA HỌC SINH NÀY
-    await autoGradeSubmission(sub, Boolean(forceReOcr));
+    // CHỈ CHẤM DUY NHẤT BÀI NỘP CỦA HỌC SINH NÀY (theo bộ tiêu chí của lớp)
+    await autoGradeSubmission(sub, { forceReOcr: Boolean(forceReOcr), rubric: getEffectiveRubric(req.classroom) });
     await sub.save();
 
     const hasScores = sub.scores && sub.scores.length > 0;
@@ -440,6 +461,7 @@ export const gradeAllSubmissionsWithAI = async (req, res) => {
 
     // Lấy tất cả học sinh của lớp
     const students = await Student.find({ classId }).lean();
+    const rubric = getEffectiveRubric(req.classroom);
     let count = 0;
 
     for (const std of students) {
@@ -451,7 +473,7 @@ export const gradeAllSubmissionsWithAI = async (req, res) => {
       }).sort({ submissionNumber: -1 });
 
       if (sub && (sub.text?.trim() || sub.attachments?.length > 0)) {
-        await autoGradeSubmission(sub);
+        await autoGradeSubmission(sub, { rubric });
         await sub.save();
         count++;
       }
@@ -494,7 +516,7 @@ export const retrySubmission = async (req, res) => {
     sub.state = 'processing';
     await sub.save();
 
-    await autoGradeSubmission(sub, { forceReOcr: true });
+    await autoGradeSubmission(sub, { forceReOcr: true, rubric: getEffectiveRubric(req.classroom) });
     await sub.save();
 
     const isSuccess = ['suggested', 'completed', 'approved'].includes(sub.state);
@@ -523,10 +545,11 @@ export const retryAllFailedSubmissions = async (req, res) => {
 
     let successCount = 0;
     let failedCount = 0;
+    const rubric = getEffectiveRubric(req.classroom);
 
     for (const sub of failedSubs) {
       sub.state = 'processing';
-      await autoGradeSubmission(sub, { forceReOcr: true });
+      await autoGradeSubmission(sub, { forceReOcr: true, rubric });
       await sub.save();
       if (['suggested', 'completed', 'approved'].includes(sub.state)) {
         successCount++;

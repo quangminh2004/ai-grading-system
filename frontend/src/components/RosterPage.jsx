@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { rubricMaxTotal, sumScores, fmtScore } from '../utils/rubric';
 
 export default function RosterPage({
   classroom,
@@ -71,11 +72,18 @@ export default function RosterPage({
                 <th style={{ padding: '12px' }}>Mã HS</th>
                 <th style={{ padding: '12px' }}>Họ và tên</th>
                 <th style={{ padding: '12px' }}>Trạng thái bài làm</th>
+                <th style={{ padding: '12px' }}>Điểm</th>
                 <th style={{ padding: '12px' }}>Tệp đính kèm</th>
               </tr>
             </thead>
             <tbody>
-              {students.map((s, idx) => (
+              {students.map((s, idx) => {
+                // Điểm của bài đang hoạt động: ưu tiên điểm giáo viên đã chấm, sau đó điểm AI đề xuất
+                const isTeacher = s.teacherScores?.length > 0;
+                const sc = isTeacher ? s.teacherScores : s.scores;
+                const hasScore = sc?.length > 0;
+                const maxTotal = rubricMaxTotal(s.rubric || classroom?.rubric);
+                return (
                 <tr key={s.id} style={{ borderBottom: '1px solid #eef2ea' }}>
                   <td style={{ padding: '12px', color: '#7a8670' }}>{idx + 1}</td>
                   <td style={{ padding: '12px', fontWeight: 'bold' }}>{s.id}</td>
@@ -98,11 +106,29 @@ export default function RosterPage({
                         : 'Chưa có bài'}
                     </span>
                   </td>
+                  <td style={{ padding: '12px' }}>
+                    {hasScore ? (
+                      <span title={isTeacher ? 'Điểm giáo viên chấm' : 'Điểm AI đề xuất (chưa duyệt)'}>
+                        <b style={{ color: s.state === 'approved' ? '#2b5120' : '#8d6313', fontSize: '15px' }}>
+                          {fmtScore(sumScores(sc))}
+                        </b>
+                        <span style={{ color: '#7a8670' }}> / {fmtScore(maxTotal)}</span>
+                        {s.state !== 'approved' && (
+                          <span style={{ fontSize: '12px', color: '#a08a5a', marginLeft: '6px' }}>
+                            ({isTeacher ? 'nháp' : 'AI'})
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#a0ac96' }}>—</span>
+                    )}
+                  </td>
                   <td style={{ padding: '12px', color: '#687560' }}>
                     {s.attachments?.length ? `${s.attachments.length} tệp` : '—'}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

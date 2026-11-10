@@ -215,6 +215,16 @@ export const api = {
     return res.json();
   },
 
+  // Lưu bộ tiêu chí đánh giá của lớp (hoặc { reset: true } để về mặc định)
+  updateClassRubric: async (classId, payload) => {
+    const res = await fetch(`${API_BASE}/classes/${classId}/rubric`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    });
+    return res.json();
+  },
+
   getAssignment: async () => {
     const res = await fetch(`${API_BASE}/assignment`, {
       headers: authHeaders(),

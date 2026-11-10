@@ -2,19 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getFileUrl, api } from '../api';
 import ImageEditorModal from './ImageEditorModal';
 import { compressImageFile } from '../utils/imageOptimizer';
+import { getRubric, rubricMaxTotal } from '../utils/rubric';
 
 const total = (a) => (a || []).reduce((s, n) => s + Number(n), 0);
 const fmt = (n) => Number(n).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 
-const rubric = [
-  { name: 'Nội dung & chi tiết', max: 4, desc: 'Đúng trọng tâm đề bài; có chi tiết cụ thể, hình ảnh sinh động hoặc cảm xúc chân thực.' },
-  { name: 'Sắp xếp ý & liên kết', max: 2, desc: 'Bố cục rõ ràng, các ý được kết nối và sắp xếp hợp lý trong bài viết.' },
-  { name: 'Từ ngữ & diễn đạt', max: 2, desc: 'Từ ngữ gợi cảm, câu rõ nghĩa; diễn đạt tự nhiên và có nét sáng tạo riêng.' },
-  { name: 'Chính tả & dấu câu', max: 2, desc: 'Viết đúng chính tả, đúng quy tắc viết hoa và sử dụng dấu câu phù hợp.' },
-];
-
 export default function GradingPage({
   students,
+  classRubric,
   selectedId,
   onSelectStudent,
   onOpenEditModal,
@@ -408,6 +403,9 @@ export default function GradingPage({
 
   const currentScores = displayData.teacherScores || displayData.scores || [];
   const currentTotal = total(currentScores);
+  // Bộ tiêu chí của bài đang xem (bài đã chấm giữ tiêu chí lúc chấm; bài mới dùng tiêu chí lớp)
+  const rubric = getRubric(displayData.rubric || current?.rubric || classRubric);
+  const rubricTotal = rubricMaxTotal(rubric);
 
   return (
     <div className="layout grading-layout">
@@ -845,7 +843,7 @@ export default function GradingPage({
                   </div>
                   <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#273822' }}>
                     {currentScores.length ? fmt(currentTotal) : '—'}
-                    <span style={{ fontSize: '16px', color: '#7a8670' }}> / 10 điểm</span>
+                    <span style={{ fontSize: '16px', color: '#7a8670' }}> / {fmt(rubricTotal)} điểm</span>
                   </div>
                 </div>
 
@@ -1280,9 +1278,9 @@ export default function GradingPage({
                 )}
               </div>
 
-              {/* 4 Tiêu chí đánh giá */}
+              {/* Tiêu chí đánh giá */}
               <div className="card" style={{ padding: '18px' }}>
-                <h4>Điểm theo 4 tiêu chí đánh giá</h4>
+                <h4>Điểm theo {rubric.length} tiêu chí đánh giá</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
                   {rubric.map((r, i) => {
                     const score = currentScores[i] ?? '—';
@@ -1300,7 +1298,7 @@ export default function GradingPage({
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                           <strong>{r.name}</strong>
                           <b style={{ color: '#2b5120', fontSize: '16px' }}>
-                            {score} / {r.max} điểm
+                            {score} / {fmt(r.max)} điểm
                           </b>
                         </div>
                         <p style={{ margin: 0, fontSize: '13px', color: '#606c59' }}>

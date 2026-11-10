@@ -10,6 +10,7 @@ import {
   getClassDetails,
   addStudent,
   importRoster,
+  updateClassRubric,
 } from '../controllers/classController.js';
 import {
   getAssignment,
@@ -103,6 +104,7 @@ router.delete('/classes/:classId', ...classAccess, deleteClass);
 router.get('/classes/:classId/full', ...classAccess, getClassDetails);
 router.post('/classes/:classId/students', ...classAccess, addStudent);
 router.post('/classes/:classId/roster', ...classAccess, importRoster);
+router.put('/classes/:classId/rubric', ...classAccess, updateClassRubric);
 
 // ==================== TIÊU CHÍ & BÀI TẬP ====================
 router.get('/assignment', requireAuth, getAssignment);

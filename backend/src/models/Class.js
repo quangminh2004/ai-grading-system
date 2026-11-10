@@ -1,5 +1,14 @@
 import mongoose from 'mongoose';
 
+const rubricItemSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    max: { type: Number, required: true, min: 0 },
+    desc: { type: String, default: '', trim: true },
+  },
+  { _id: false }
+);
+
 const classSchema = new mongoose.Schema(
   {
     classId: {
@@ -30,6 +39,11 @@ const classSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+    },
+    // Bộ tiêu chí đánh giá riêng của lớp (rỗng = dùng bộ tiêu chí mặc định)
+    rubric: {
+      type: [rubricItemSchema],
+      default: [],
     },
   },
   {

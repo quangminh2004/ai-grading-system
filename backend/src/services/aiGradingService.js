@@ -7,6 +7,29 @@ import {
   fetchWithRetry,
   aiProviderTracker,
 } from './aiErrorHandler.js';
+import {
+  DEFAULT_RUBRIC,
+  isDefaultRubricShape,
+  normalizeScores,
+} from '../config/rubric.js';
+
+const fmtScore = (n) => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+// Tạo đoạn mô tả tiêu chí chấm cho prompt AI theo bộ tiêu chí của lớp
+function buildRubricPromptSection(rubric) {
+  const list = Array.isArray(rubric) && rubric.length ? rubric : DEFAULT_RUBRIC;
+  const totalMax = list.reduce((s, r) => s + Number(r.max), 0);
+  const lines = list
+    .map((r, i) => `   - Tiêu chí ${i + 1}: ${r.name} (0 - ${fmtScore(r.max)} điểm)${r.desc ? `: ${r.desc}` : ''}`)
+    .join('\n');
+  return {
+    count: list.length,
+    totalMax,
+    text: `CHẤM BÀI THEO ĐÚNG ${list.length} TIÊU CHÍ SAU (TỔNG ${fmtScore(totalMax)} ĐIỂM):\n${lines}`,
+    scoresExample: JSON.stringify(list.map((r) => Number(r.max))),
+    explainExample: JSON.stringify(list.map(() => '...')),
+  };
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,7 +75,7 @@ export function cleanOcrEssayText(rawText) {
 }
 
 // 1. GỌI OPENAI VISION API (GPT-4o / GPT-4o-mini) ĐỌC ĐA ẢNH & CHẤM ĐIỂM
-export async function callOpenAIVision(imagesInput, mimeTypeOrTopic = 'image/jpeg', essayTopic = 'Tả một cây em yêu thích') {
+export async function callOpenAIVision(imagesInput, mimeTypeOrTopic = 'image/jpeg', essayTopic = 'Tả một cây em yêu thích', rubric = DEFAULT_RUBRIC) {
   const apiKey = (process.env.OPENAI_API_KEY || '').trim();
   if (!apiKey) {
     return {
@@ -97,7 +120,8 @@ export async function callOpenAIVision(imagesInput, mimeTypeOrTopic = 'image/jpe
     };
   }
 
-  const prompt = `Bạn là chuyên gia khảo thí và giáo viên Tiếng Việt Tiểu học (lớp 4).
+  const rp = buildRubricPromptSection(rubric);
+  const prompt = `Bạn là chuyên gia khảo thí và giáo viên Tiếng Việt Tiểu học.
 Dưới đây là hình ảnh ${images.length} trang bài làm viết tay của học sinh (theo thứ tự: Trang 1, Trang 2, ...).
 Đề bài: "${topic}".
 
@@ -107,13 +131,10 @@ Nhiệm vụ:
    - Ghép nối liền mạch thành một bài văn hoàn chỉnh thống nhất, không bỏ sót trang nào.
    - Giữ nguyên các từ học sinh viết (kể cả lỗi chính tả nếu có để giáo viên nắm bắt và sửa cho học sinh).
    - Bỏ qua các phần ghi Họ tên, Lớp, Trường nếu có, chỉ lấy nội dung bài viết.
-2. CHẤM BÀI theo đúng 4 tiêu chí chuẩn Tiểu học (thang điểm 10):
-   - Tiêu chí 1: Nội dung & chi tiết (0 - 4.0 điểm)
-   - Tiêu chí 2: Sắp xếp ý & liên kết (0 - 2.0 điểm)
-   - Tiêu chí 3: Từ ngữ & diễn đạt (0 - 2.0 điểm)
-   - Tiêu chí 4: Chính tả & dấu câu (0 - 2.0 điểm)
+2. ${rp.text}
+   - Mảng "scores" phải có ĐÚNG ${rp.count} số theo đúng thứ tự tiêu chí, mỗi số không vượt quá điểm tối đa của tiêu chí đó.
 3. ĐƯA RA ĐÁNH GIÁ SƯ PHẠM CHI TIẾT:
-   - explain: mảng 4 chuỗi giải thích cho 4 tiêu chí
+   - explain: mảng ${rp.count} chuỗi giải thích cho ${rp.count} tiêu chí
    - strength: ưu điểm nổi bật của bài
    - evidence: trích dẫn câu văn hoặc cụm từ hay từ bài làm
    - support: điểm cần rèn luyện hoặc bổ sung
@@ -124,8 +145,8 @@ Nhiệm vụ:
 Trả về DUY NHẤT định dạng JSON:
 {
   "text": "Nội dung bài văn hoàn chỉnh ghép nối từ các trang...",
-  "scores": [3.5, 2.0, 2.0, 2.0],
-  "explain": ["...", "...", "...", "..."],
+  "scores": ${rp.scoresExample},
+  "explain": ${rp.explainExample},
   "strength": "...",
   "evidence": "...",
   "support": "...",
@@ -289,7 +310,7 @@ export function extractGeminiText(data) {
 }
 
 // 2. GỌI GEMINI VISION API (HỖ TRỢ ĐỌC ĐA ẢNH / NHIỀU TRANG BÀI LÀM VIẾT TAY QUA INTERACTIONS API & GENERATECONTENT)
-export async function callGeminiVision(imagesInput, mimeTypeOrTopic = 'image/jpeg', essayTopic = 'Tả một cây em yêu thích') {
+export async function callGeminiVision(imagesInput, mimeTypeOrTopic = 'image/jpeg', essayTopic = 'Tả một cây em yêu thích', rubric = DEFAULT_RUBRIC) {
   const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
   if (!apiKey) {
     return {
@@ -334,8 +355,9 @@ export async function callGeminiVision(imagesInput, mimeTypeOrTopic = 'image/jpe
     };
   }
 
+  const rp = buildRubricPromptSection(rubric);
   const prompt = `Bạn là chuyên gia thẩm định chữ viết tay học sinh Tiểu học Việt Nam và giáo viên Ngữ văn giỏi.
-Dưới đây là hình ảnh ${images.length} trang bài làm viết tay trên giấy ô ly (vở kẻ ô học sinh) của học sinh lớp 4.
+Dưới đây là hình ảnh ${images.length} trang bài làm viết tay trên giấy ô ly (vở kẻ ô học sinh) của học sinh tiểu học.
 Đề bài bài văn: "${topic}".
 
 QUY TẮC ĐỌC CHỮ VIẾT TAY TIẾNG VIỆT (BẮT BUỘC):
@@ -347,14 +369,11 @@ QUY TẮC ĐỌC CHỮ VIẾT TAY TIẾNG VIỆT (BẮT BUỘC):
    - Giữ nguyên các từ học sinh viết (kể cả lỗi chính tả nếu có để giáo viên hướng dẫn sửa cho học sinh).
    - Bỏ qua các phần tiêu đề ngoài lề như "Họ và tên", "Đề bài", "Bài làm" ở đầu trang, chỉ lấy trọn vẹn nội dung bài văn của học sinh đưa vào trường "text".
 
-2. CHẤM BÀI THEO ĐÚNG 4 TIÊU CHÍ CHUẨN TIỂU HỌC (THANG ĐIỂM 10):
-   - Tiêu chí 1: Nội dung & chi tiết (0 - 4.0 điểm)
-   - Tiêu chí 2: Sắp xếp ý & liên kết câu (0 - 2.0 điểm)
-   - Tiêu chí 3: Từ ngữ & diễn đạt gợi cảm (0 - 2.0 điểm)
-   - Tiêu chí 4: Chính tả & dấu câu (0 - 2.0 điểm)
+2. ${rp.text}
+   - Mảng "scores" phải có ĐÚNG ${rp.count} số theo đúng thứ tự tiêu chí, mỗi số không vượt quá điểm tối đa của tiêu chí đó.
 
 3. ĐƯA RA ĐÁNH GIÁ SƯ PHẠM CHI TIẾT:
-   - explain: mảng 4 chuỗi giải thích tương ứng cho 4 tiêu chí ở trên
+   - explain: mảng ${rp.count} chuỗi giải thích tương ứng cho ${rp.count} tiêu chí ở trên
    - strength: nhận xét điểm sáng, nét riêng hoặc cảm xúc hay trong bài làm
    - evidence: trích dẫn nguyên văn 1-2 câu văn hay nhất của học sinh trong bài
    - support: gợi ý cụ thể điểm học sinh cần lưu ý rèn luyện thêm
@@ -365,8 +384,8 @@ QUY TẮC ĐỌC CHỮ VIẾT TAY TIẾNG VIỆT (BẮT BUỘC):
 TRẢ VỀ DUY NHẤT ĐỊNH DẠNG JSON HỢP LỆ (KHÔNG VIẾT CHỮ NÀO BÊN NGOÀI KHỐI JSON):
 {
   "text": "Toàn bộ bài văn hoàn chỉnh được đọc chính xác từ các trang ảnh...",
-  "scores": [3.5, 2.0, 1.75, 1.75],
-  "explain": ["...", "...", "...", "..."],
+  "scores": ${rp.scoresExample},
+  "explain": ${rp.explainExample},
   "strength": "...",
   "evidence": "...",
   "support": "...",
@@ -509,12 +528,13 @@ TRẢ VỀ DUY NHẤT ĐỊNH DẠNG JSON HỢP LỆ (KHÔNG VIẾT CHỮ NÀO B
 }
 
 // 3. GỌI GEMINI CHẤM ĐIỂM BÀI VĂN DẠNG TEXT (KHI GIÁO VIÊN NHẬP HOẶC SỬA VĂN BẢN)
-export async function callGeminiTextGrading(text, essayTopic = 'Tả một cây em yêu thích') {
+export async function callGeminiTextGrading(text, essayTopic = 'Tả một cây em yêu thích', rubric = DEFAULT_RUBRIC) {
   const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
   if (!apiKey || !text || text.trim().length === 0) return null;
 
-  const prompt = `Bạn là chuyên gia khảo thí và giáo viên Tiếng Việt Tiểu học (lớp 4).
-Dưới đây là nội dung bài văn của học sinh lớp 4.
+  const rp = buildRubricPromptSection(rubric);
+  const prompt = `Bạn là chuyên gia khảo thí và giáo viên Tiếng Việt Tiểu học.
+Dưới đây là nội dung bài văn của học sinh tiểu học.
 Đề bài: "${essayTopic}".
 Nội dung bài làm:
 """
@@ -522,13 +542,10 @@ ${text}
 """
 
 Nhiệm vụ:
-1. Chấm bài theo đúng 4 tiêu chí chuẩn Tiểu học (thang điểm 10):
-   - Tiêu chí 1: Nội dung & chi tiết (0 - 4.0 điểm)
-   - Tiêu chí 2: Sắp xếp ý & liên kết câu (0 - 2.0 điểm)
-   - Tiêu chí 3: Từ ngữ & diễn đạt gợi cảm (0 - 2.0 điểm)
-   - Tiêu chí 4: Chính tả & dấu câu (0 - 2.0 điểm)
+1. ${rp.text}
+   - Mảng "scores" phải có ĐÚNG ${rp.count} số theo đúng thứ tự tiêu chí, mỗi số không vượt quá điểm tối đa của tiêu chí đó.
 2. Đưa ra nhận xét sư phạm giàu tính động viên:
-   - explain: mảng 4 chuỗi giải thích cho 4 tiêu chí
+   - explain: mảng ${rp.count} chuỗi giải thích cho ${rp.count} tiêu chí
    - strength: ưu điểm nổi bật
    - evidence: trích dẫn câu văn hay trong bài
    - support: nội dung cần hỗ trợ rèn luyện thêm
@@ -538,8 +555,8 @@ Nhiệm vụ:
 
 Trả về DUY NHẤT định dạng JSON:
 {
-  "scores": [3.5, 2.0, 1.75, 1.75],
-  "explain": ["...", "...", "...", "..."],
+  "scores": ${rp.scoresExample},
+  "explain": ${rp.explainExample},
   "strength": "...",
   "evidence": "...",
   "support": "...",
@@ -759,11 +776,34 @@ export function evaluateVietnameseEssay(text) {
 }
 
 // 3. HÀM CHẤM BÀI CHÍNH (HỖ TRỢ ĐỌC ĐA ẢNH & PHÂN LOẠI LỖI AI VISION CHUẨN XÁC)
+// Kiểm tra & chuẩn hóa điểm AI trả về theo bộ tiêu chí. Nếu số điểm không khớp số tiêu chí,
+// không ghi điểm (để giáo viên tự chấm) thay vì tin vào điểm sai cấu trúc.
+function applyScoresFromModel(sub, data, rubric) {
+  const normalized = normalizeScores(data?.scores, rubric);
+  sub.rubric = rubric;
+  if (!normalized) {
+    sub.scores = [];
+    sub.explain = [];
+    return false;
+  }
+  sub.scores = normalized;
+  sub.explain = Array.isArray(data.explain) ? data.explain.slice(0, rubric.length).map(String) : [];
+  return true;
+}
+
 export async function autoGradeSubmission(sub, optionsInput = {}) {
   const options = typeof optionsInput === 'boolean'
     ? { forceReOcr: optionsInput }
     : (optionsInput || {});
   const { forceReOcr = false, isPrinted = false, allowLocalOcr = false } = options;
+  // Bộ tiêu chí của lớp (mặc định 4 tiêu chí nếu lớp chưa tùy chỉnh)
+  const rubric = Array.isArray(options.rubric) && options.rubric.length ? options.rubric : DEFAULT_RUBRIC;
+  const canUseNlpFallback = isDefaultRubricShape(rubric);
+
+  // Điểm giáo viên chấm theo bộ tiêu chí cũ (khác số tiêu chí) không còn khớp → bỏ để chấm lại
+  if (Array.isArray(sub.teacherScores) && sub.teacherScores.length && sub.teacherScores.length !== rubric.length) {
+    sub.teacherScores = null;
+  }
 
   let extractedText = sub.text ? sub.text.trim() : '';
 
@@ -838,18 +878,18 @@ export async function autoGradeSubmission(sub, optionsInput = {}) {
     // BƯỚC 1: ƯU TIÊN GỌI GOOGLE GEMINI VISION (INTERACTIONS API & VISION)
     if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
       console.log(`🤖 Đang đọc ${imageFiles.length} trang ảnh bằng Google Gemini Vision...`);
-      const geminiResult = await callGeminiVision(imageFiles, 'image/jpeg', sub.topic || 'Tả một cây em yêu thích');
+      const geminiResult = await callGeminiVision(imageFiles, 'image/jpeg', sub.topic || 'Tả một cây em yêu thích', rubric);
       if (geminiResult.success && geminiResult.data?.text) {
         sub.text = geminiResult.data.text;
-        sub.scores = geminiResult.data.scores;
-        sub.explain = geminiResult.data.explain;
+        const scoresOk = applyScoresFromModel(sub, geminiResult.data, rubric);
         sub.errors = geminiResult.data.errors || [];
         sub.strength = geminiResult.data.strength;
         sub.evidence = geminiResult.data.evidence;
         sub.support = geminiResult.data.support;
         sub.activity = geminiResult.data.activity;
         sub.feedback = geminiResult.data.feedback;
-        sub.state = 'suggested';
+        // Điểm không khớp số tiêu chí → để giáo viên kiểm tra và tự chấm
+        sub.state = scoresOk ? 'suggested' : 'needs_review';
         sub.errorDetails = null; // Xóa lỗi cũ
         sub.ocrConfidence = null;
         sub.logs = sub.logs || [];
@@ -870,18 +910,17 @@ export async function autoGradeSubmission(sub, optionsInput = {}) {
     const enableOpenAi = process.env.ENABLE_OPENAI_FALLBACK === 'true' && Boolean(process.env.OPENAI_API_KEY);
     if (enableOpenAi) {
       console.log(`🤖 Đang gửi ${imageFiles.length} trang ảnh tới OpenAI Vision (GPT-4o)...`);
-      const openaiResult = await callOpenAIVision(imageFiles, 'image/jpeg', sub.topic || 'Tả một cây em yêu thích');
+      const openaiResult = await callOpenAIVision(imageFiles, 'image/jpeg', sub.topic || 'Tả một cây em yêu thích', rubric);
       if (openaiResult.success && openaiResult.data?.text) {
         sub.text = openaiResult.data.text;
-        sub.scores = openaiResult.data.scores;
-        sub.explain = openaiResult.data.explain;
+        const scoresOk = applyScoresFromModel(sub, openaiResult.data, rubric);
         sub.errors = openaiResult.data.errors || [];
         sub.strength = openaiResult.data.strength;
         sub.evidence = openaiResult.data.evidence;
         sub.support = openaiResult.data.support;
         sub.activity = openaiResult.data.activity;
         sub.feedback = openaiResult.data.feedback;
-        sub.state = 'suggested';
+        sub.state = scoresOk ? 'suggested' : 'needs_review';
         sub.errorDetails = null; // Xóa lỗi cũ
         sub.ocrConfidence = null;
         sub.logs = sub.logs || [];
@@ -913,9 +952,11 @@ export async function autoGradeSubmission(sub, optionsInput = {}) {
       console.warn(`[AI Vision] Không thể đọc tự động (${primaryError.provider} - ${primaryError.errorCode}): ${primaryError.errorMessage}`);
 
       // Nếu bài làm đã có sẵn nội dung văn bản (do giáo viên nhập hoặc sửa trước đó):
-      if (sub.text && isValidVietnameseText(sub.text)) {
+      // (động cơ chấm dự phòng chỉ áp dụng cho bộ tiêu chí mặc định 4-2-2-2)
+      if (canUseNlpFallback && sub.text && isValidVietnameseText(sub.text)) {
         console.log(`💡 Đang đánh giá bài dựa trên văn bản học sinh đã nhập...`);
         const nlpGrading = evaluateVietnameseEssay(sub.text);
+        sub.rubric = rubric;
         sub.scores = nlpGrading.scores;
         sub.explain = nlpGrading.explain || [];
         sub.errors = nlpGrading.errors || [];
@@ -926,6 +967,16 @@ export async function autoGradeSubmission(sub, optionsInput = {}) {
         sub.feedback = nlpGrading.feedback || '';
         sub.state = 'suggested';
         sub.errorDetails = null;
+        return sub;
+      }
+
+      // Đã có văn bản nhưng lớp dùng tiêu chí tùy chỉnh → giữ văn bản, để giáo viên tự chấm
+      if (!canUseNlpFallback && sub.text && isValidVietnameseText(sub.text)) {
+        sub.rubric = rubric;
+        sub.scores = [];
+        sub.explain = [];
+        sub.state = 'needs_review';
+        sub.support = 'AI chưa chấm được theo bộ tiêu chí của lớp. Thầy cô vui lòng bấm "✎ Chỉnh sửa & Duyệt bài" để tự chấm điểm.';
         return sub;
       }
 
@@ -1034,8 +1085,8 @@ export async function autoGradeSubmission(sub, optionsInput = {}) {
 
   if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
     try {
-      const geminiTextResult = await callGeminiTextGrading(extractedText, sub.topic || 'Tả một cây em yêu thích');
-      if (geminiTextResult && Array.isArray(geminiTextResult.scores) && geminiTextResult.scores.length === 4) {
+      const geminiTextResult = await callGeminiTextGrading(extractedText, sub.topic || 'Tả một cây em yêu thích', rubric);
+      if (geminiTextResult && normalizeScores(geminiTextResult.scores, rubric)) {
         gradingResult = geminiTextResult;
         gradingProvider = 'gemini';
       }
@@ -1044,13 +1095,25 @@ export async function autoGradeSubmission(sub, optionsInput = {}) {
     }
   }
 
-  if (!gradingResult) {
+  if (!gradingResult && canUseNlpFallback) {
     gradingResult = evaluateVietnameseEssay(extractedText);
     gradingProvider = 'nlp';
   }
 
+  // Tiêu chí tùy chỉnh mà AI không chấm được → giữ văn bản, để giáo viên tự chấm
+  if (!gradingResult) {
+    sub.text = extractedText;
+    sub.rubric = rubric;
+    sub.scores = [];
+    sub.explain = [];
+    sub.state = 'needs_review';
+    sub.support = 'AI chưa chấm được theo bộ tiêu chí của lớp. Thầy cô vui lòng bấm "✎ Chỉnh sửa & Duyệt bài" để tự chấm điểm.';
+    return sub;
+  }
+
   sub.text = extractedText;
-  sub.scores = gradingResult.scores;
+  sub.rubric = rubric;
+  sub.scores = normalizeScores(gradingResult.scores, rubric) || [];
   sub.explain = gradingResult.explain || [];
   sub.errors = gradingResult.errors || [];
   sub.strength = gradingResult.strength || '';
