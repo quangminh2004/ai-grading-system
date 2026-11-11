@@ -15,12 +15,12 @@ export default function Sidebar({
   const avatarLetters = isAdmin
     ? 'AD'
     : (currentUser?.fullName || 'GV')
-        .split(' ')
-        .filter(Boolean)
-        .slice(-2)
-        .map((w) => w[0])
-        .join('')
-        .toUpperCase();
+      .split(' ')
+      .filter(Boolean)
+      .slice(-2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase();
 
   return (
     <aside className="sidebar">
@@ -33,7 +33,13 @@ export default function Sidebar({
           setPage(isAdmin ? 'admin_users' : 'overview');
         }}
       >
-        <span className="brand-icon">✳</span>
+        <span className="brand-icon">
+          <img
+            src="/samples/Thales_STEM_logo_decal_trong_5000px.png"
+            alt="Thales STEM"
+            style={{ width: '34px', height: '34px', objectFit: 'contain', borderRadius: '10px' }}
+          />
+        </span>
         <span>
           Chấm <i>&</i> Chữa AI
         </span>

@@ -34,7 +34,13 @@ export default function LoginPage({ onLoginSuccess }) {
       <div className="login-card">
         {/* Header / Brand */}
         <div className="login-header">
-          <div className="login-brand-icon">✳</div>
+          <div className="login-brand-icon">
+            <img
+              src="/samples/Thales_STEM_logo_decal_trong_5000px.png"
+              alt="Thales STEM"
+              style={{ width: '54px', height: '54px', objectFit: 'contain', borderRadius: '12px' }}
+            />
+          </div>
           <h2>Trợ lý Chấm & Chữa Bài AI</h2>
           <p className="login-subtitle">
             Nền tảng hỗ trợ giáo viên đánh giá bài viết và quản lý lớp học
