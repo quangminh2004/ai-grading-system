@@ -13,7 +13,7 @@ export default function GradingPage({
   selectedId,
   onSelectStudent,
   onOpenEditModal,
-  onExportCSV,
+  onExportXLSX,
   currentClassId,
   onRefreshClass,
   showToast,
@@ -22,6 +22,7 @@ export default function GradingPage({
   const [filter, setFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('review');
   const [gradingAI, setGradingAI] = useState(false);
+  const [savingText, setSavingText] = useState(false);
   const [uploadingDirect, setUploadingDirect] = useState(false);
   const [isEditingText, setIsEditingText] = useState(false);
   const [editedText, setEditedText] = useState('');
@@ -216,6 +217,11 @@ export default function GradingPage({
   const handleGradeAI = async () => {
     if (!current || !currentClassId) return;
 
+    if (displayData.state === 'approved') {
+      showToast?.('Bài làm này đã được giáo viên duyệt, không thể chấm lại bằng AI.');
+      return;
+    }
+
     // Kiểm tra xem bài hiện tại có ảnh hoặc văn bản chưa
     const hasContent = (displayData.attachments && displayData.attachments.length > 0) || Boolean(displayData.text?.trim()) || Boolean(editedText?.trim());
     if (!hasContent) {
@@ -242,6 +248,29 @@ export default function GradingPage({
       showToast?.('Lỗi: ' + err.message);
     } finally {
       setGradingAI(false);
+    }
+  };
+
+  const handleSaveEditedText = async () => {
+    if (!current || !currentClassId) return;
+    setSavingText(true);
+    try {
+      const res = await api.reviewSubmission(currentClassId, current.id, {
+        submissionId: activeSub?._id,
+        text: editedText,
+        reason: 'Giáo viên chỉnh sửa văn bản bài làm',
+      });
+      if (res.success) {
+        showToast?.('✓ Đã cập nhật văn bản bài làm!');
+        setIsEditingText(false);
+        if (onRefreshClass) await onRefreshClass(currentClassId);
+      } else {
+        showToast?.(res.message || 'Lỗi khi lưu văn bản bài làm');
+      }
+    } catch (err) {
+      showToast?.('Lỗi: ' + err.message);
+    } finally {
+      setSavingText(false);
     }
   };
 
@@ -619,29 +648,31 @@ export default function GradingPage({
                 <span>{uploadingDirect && uploadMode === 'new' ? 'Đang tải bài...' : 'Tải bài mới'}</span>
               </button>
 
-              {/* Nút kích hoạt chấm AI - Chỉ bắt đầu chấm khi giáo viên bấm nút này */}
-              <button
-                className="btn secondary"
-                onClick={handleGradeAI}
-                disabled={gradingAI || uploadingDirect}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: '#2d6325',
-                  color: '#ffffff',
-                  border: '1px solid #20481a',
-                  fontWeight: '600',
-                  boxShadow: '0 2px 4px rgba(45,99,37,0.25)',
-                }}
-                title="Kích hoạt AI đọc toàn bộ ảnh bài làm và chấm điểm theo 4 tiêu chí"
-              >
-                <span>
-                  {gradingAI
-                    ? 'AI đang chấm bài...'
-                    : (displayData.scores?.length > 0 ? 'AI Chấm lại' : 'Chấm bài bằng AI')}
-                </span>
-              </button>
+              {/* Nút kích hoạt chấm AI - Chỉ hiển thị khi bài chưa được giáo viên duyệt */}
+              {displayData.state !== 'approved' && (
+                <button
+                  className="btn secondary"
+                  onClick={handleGradeAI}
+                  disabled={gradingAI || uploadingDirect}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: '#2d6325',
+                    color: '#ffffff',
+                    border: '1px solid #20481a',
+                    fontWeight: '600',
+                    boxShadow: '0 2px 4px rgba(45,99,37,0.25)',
+                  }}
+                  title="Kích hoạt AI đọc toàn bộ ảnh bài làm và chấm điểm theo 4 tiêu chí"
+                >
+                  <span>
+                    {gradingAI
+                      ? 'AI đang chấm bài...'
+                      : (displayData.scores?.length > 0 ? 'AI Chấm lại' : 'Chấm bài bằng AI')}
+                  </span>
+                </button>
+              )}
 
               <button
                 className="btn primary"
@@ -649,8 +680,12 @@ export default function GradingPage({
               >
                 Chỉnh sửa & Duyệt bài
               </button>
-              <button className="btn outline" onClick={onExportCSV}>
-                Xuất CSV
+              <button
+                className="btn outline"
+                onClick={onExportXLSX}
+                title="Xuất bảng điểm các bài đã duyệt ra file Excel (.xlsx)"
+              >
+                Xuất XLSX
               </button>
 
               {/* Nút xóa bài nộp hiện tại */}
@@ -1205,14 +1240,25 @@ export default function GradingPage({
                       </button>
                     ) : (
                       <div style={{ display: 'flex', gap: '6px' }}>
-                        <button
-                          className="btn compact primary"
-                          style={{ fontSize: '12px', padding: '3px 9px' }}
-                          onClick={handleGradeAI}
-                          disabled={gradingAI}
-                        >
-                          AI Chấm bài này
-                        </button>
+                        {displayData.state !== 'approved' ? (
+                          <button
+                            className="btn compact primary"
+                            style={{ fontSize: '12px', padding: '3px 9px' }}
+                            onClick={handleGradeAI}
+                            disabled={gradingAI}
+                          >
+                            AI Chấm bài này
+                          </button>
+                        ) : (
+                          <button
+                            className="btn compact primary"
+                            style={{ fontSize: '12px', padding: '3px 9px' }}
+                            onClick={handleSaveEditedText}
+                            disabled={savingText}
+                          >
+                            {savingText ? 'Đang lưu...' : 'Lưu văn bản'}
+                          </button>
+                        )}
                         <button
                           className="btn compact"
                           style={{ fontSize: '12px', padding: '3px 9px' }}
@@ -1244,7 +1290,11 @@ export default function GradingPage({
                       }}
                     />
                     <div style={{ marginTop: '6px', fontSize: '12px', color: '#666' }}>
-                      Thầy cô có thể chỉnh sửa lỗi OCR rồi bấm <b>"AI Chấm bài này"</b> để AI phân tích lại điểm số và nhận xét.
+                      {displayData.state !== 'approved' ? (
+                        <>Thầy cô có thể chỉnh sửa lỗi OCR rồi bấm <b>"AI Chấm bài này"</b> để AI phân tích lại điểm số và nhận xét.</>
+                      ) : (
+                        <>Bài làm đã được giáo viên duyệt. Thầy cô có thể chỉnh sửa lỗi nhận dạng OCR rồi bấm <b>"Lưu văn bản"</b> để cập nhật nội dung.</>
+                      )}
                     </div>
                   </div>
                 ) : (

@@ -95,7 +95,7 @@ export const reviewSubmission = async (req, res) => {
     const logEntry = {
       at: new Date(),
       action: state === 'approved' ? 'approved' : 'edited',
-      scores: normalizedTeacherScores || sub.scores,
+      scores: normalizedTeacherScores || sub.teacherScores || sub.scores,
       reason: reason || (state === 'approved' ? 'Giáo viên duyệt kết quả' : 'Chỉnh sửa'),
     };
     sub.logs.push(logEntry);
@@ -382,6 +382,17 @@ export const receiveUploadedFiles = async (req, res) => {
   }
 };
 
+export function rejectIfApprovedForAI(res, sub) {
+  if (sub && sub.state === 'approved') {
+    res.status(400).json({
+      success: false,
+      message: 'Bài làm này đã được giáo viên duyệt, không thể chấm lại bằng AI.',
+    });
+    return true;
+  }
+  return false;
+}
+
 // POST /api/classes/:classId/submissions/:studentId/grade-ai
 // Kích hoạt AI chấm điểm — CHỈ CHẤM DUY NHẤT BÀI NÀY CỦA HỌC SINH NÀY (hỗ trợ forceReOcr)
 export const gradeSubmissionWithAI = async (req, res) => {
@@ -402,6 +413,8 @@ export const gradeSubmissionWithAI = async (req, res) => {
       // Fallback bài mới nhất của đúng học sinh này
       sub = await Submission.findOne({ classId, studentId }).sort({ submissionNumber: -1 });
     }
+
+    if (rejectIfApprovedForAI(res, sub)) return;
 
     // Nếu không có bài và cũng không có text gửi lên → báo lỗi rõ ràng
     if (!sub && !text) {
@@ -511,6 +524,8 @@ export const retrySubmission = async (req, res) => {
     if (!sub) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy bài nộp để thử lại' });
     }
+
+    if (rejectIfApprovedForAI(res, sub)) return;
 
     // Đánh dấu processing và gọi lại AI
     sub.state = 'processing';

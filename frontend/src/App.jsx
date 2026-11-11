@@ -3,7 +3,7 @@ import './style.css';
 import './intake.css';
 
 import { api } from './api';
-import { getRubric, rubricMaxTotal } from './utils/rubric';
+import { exportApprovedGradesXlsx } from './utils/exportXlsx';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import OverviewPage from './components/OverviewPage';
@@ -285,50 +285,24 @@ export default function App() {
     }
   };
 
-  // Xuất file CSV các bài đã duyệt (Giáo viên)
-  const handleExportCSV = () => {
+  // Xuất file Excel (.xlsx) các bài đã duyệt (Giáo viên)
+  const handleExportXLSX = async () => {
     const approved = students.filter((s) => s.state === 'approved');
     if (!approved.length) {
-      showToast('Chưa có bài nào được giáo viên duyệt để xuất CSV');
+      showToast('Chưa có bài nào được giáo viên duyệt để xuất file XLSX');
       return;
     }
 
-    // Cột điểm theo bộ tiêu chí hiện tại của lớp
-    const classRubric = getRubric(classroom?.rubric);
-    const classMax = rubricMaxTotal(classRubric);
-    const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-
-    const headers = [
-      'Mã HS',
-      'Họ và tên',
-      ...classRubric.map((r) => csvCell(`${r.name} (/${r.max})`)),
-      `Tổng điểm (/${classMax})`,
-      'Nhận xét của giáo viên',
-    ];
-
-    const rows = approved.map((s) => {
-      const sc = s.teacherScores || s.scores || [];
-      const sum = sc.reduce((a, b) => a + Number(b), 0);
-      // Bài chấm theo bộ tiêu chí khác số lượng → không xếp vào cột chi tiết để tránh lệch
-      const sameShape = sc.length === classRubric.length;
-      return [
-        s.id,
-        csvCell(s.name),
-        ...classRubric.map((_, i) => (sameShape ? sc[i] ?? '' : '')),
-        sum,
-        csvCell(s.teacherFeedback || s.feedback || ''),
-      ].join(',');
-    });
-
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Bang_Diem_${classroom?.school ? classroom.school.replace(/\s+/g, '_') + '_' : ''}${currentClassId}_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    showToast(`Đã xuất báo cáo CSV cho ${approved.length} học sinh`);
+    try {
+      await exportApprovedGradesXlsx({
+        approvedStudents: approved,
+        classroom,
+        currentClassId,
+      });
+      showToast(`Đã xuất báo cáo XLSX cho ${approved.length} học sinh`);
+    } catch (err) {
+      showToast('Lỗi xuất file XLSX: ' + err.message);
+    }
   };
 
   // ==================== NẾU CHƯA ĐĂNG NHẬP: HIỂN THỊ LOGIN ====================
@@ -424,7 +398,7 @@ export default function App() {
                     selectedId={selectedStudentId}
                     onSelectStudent={setSelectedStudentId}
                     onOpenEditModal={(std) => setEditStudent(std)}
-                    onExportCSV={handleExportCSV}
+                    onExportXLSX={handleExportXLSX}
                     currentClassId={currentClassId}
                     onRefreshClass={loadClassDetails}
                     showToast={showToast}
