@@ -430,6 +430,7 @@ export default function App() {
                 {page === 'rubric' && (
                   <RubricPage
                     classroom={classroom}
+                    currentUser={currentUser}
                     showToast={showToast}
                     onRubricSaved={() => loadClassDetails(currentClassId)}
                   />

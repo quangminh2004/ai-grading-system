@@ -2,7 +2,33 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
 import { Class } from '../models/Class.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'thanh_lan_ai_grading_jwt_secret_key_2026_super_secure';
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'test' ? 'thanh_lan_test_jwt_secret_2026' : undefined);
+
+// Giới hạn đăng nhập sai: 8 lần trong 15 phút cho mỗi tên đăng nhập (chống dò mật khẩu)
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 8;
+const loginAttempts = new Map();
+
+const checkLoginRate = (username) => {
+  const now = Date.now();
+  const entry = loginAttempts.get(username);
+  if (!entry || now - entry.start > LOGIN_WINDOW_MS) return { blocked: false };
+  if (entry.count >= LOGIN_MAX_ATTEMPTS) {
+    const retryAfter = Math.ceil((LOGIN_WINDOW_MS - (now - entry.start)) / 1000);
+    return { blocked: true, retryAfter };
+  }
+  return { blocked: false };
+};
+
+const recordLoginFailure = (username) => {
+  const now = Date.now();
+  const entry = loginAttempts.get(username);
+  if (!entry || now - entry.start > LOGIN_WINDOW_MS) {
+    loginAttempts.set(username, { count: 1, start: now });
+  } else {
+    entry.count += 1;
+  }
+};
 
 // POST /api/auth/login
 export const login = async (req, res) => {
@@ -17,15 +43,30 @@ export const login = async (req, res) => {
     }
 
     const cleanUsername = username.trim().toLowerCase();
-    const user = await User.findOne({ username: cleanUsername });
 
-    if (!user) {
+    const rate = checkLoginRate(cleanUsername);
+    if (rate.blocked) {
+      return res.status(429).json({
+        success: false,
+        message: `Đăng nhập sai quá nhiều lần. Vui lòng thử lại sau ${Math.ceil(rate.retryAfter / 60)} phút.`,
+      });
+    }
+
+    const invalidCredentials = () => {
+      recordLoginFailure(cleanUsername);
       return res.status(401).json({
         success: false,
         message: 'Tên đăng nhập hoặc mật khẩu không chính xác.',
       });
-    }
+    };
 
+    const user = await User.findOne({ username: cleanUsername });
+    if (!user) return invalidCredentials();
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) return invalidCredentials();
+
+    // Chỉ tiết lộ trạng thái khóa SAU KHI mật khẩu đúng, để không dò được tài khoản
     if (!user.active) {
       return res.status(403).json({
         success: false,
@@ -33,11 +74,12 @@ export const login = async (req, res) => {
       });
     }
 
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({
+    loginAttempts.delete(cleanUsername);
+
+    if (!JWT_SECRET) {
+      return res.status(500).json({
         success: false,
-        message: 'Tên đăng nhập hoặc mật khẩu không chính xác.',
+        message: 'Máy chủ chưa được cấu hình khóa bảo mật (JWT_SECRET).',
       });
     }
 
@@ -49,7 +91,7 @@ export const login = async (req, res) => {
         school: user.school,
       },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '12h' }
     );
 
     res.json({

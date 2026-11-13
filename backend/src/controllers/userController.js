@@ -14,10 +14,12 @@ export const getAllUsers = async (req, res) => {
     if (role) filter.role = role;
     if (school) filter.school = school;
     if (search) {
+      // Thoát ký tự đặc biệt của regex để tránh ReDoS và tìm đúng chuỗi người dùng nhập
+      const escaped = String(search).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { fullName: { $regex: search, $options: 'i' } },
-        { username: { $regex: search, $options: 'i' } },
-        { school: { $regex: search, $options: 'i' } },
+        { fullName: { $regex: escaped, $options: 'i' } },
+        { username: { $regex: escaped, $options: 'i' } },
+        { school: { $regex: escaped, $options: 'i' } },
       ];
     }
 
@@ -120,8 +122,29 @@ export const updateUser = async (req, res) => {
     if (school !== undefined) user.school = school.trim();
     if (email !== undefined) user.email = email.trim().toLowerCase();
     if (phone !== undefined) user.phone = phone.trim();
-    if (role !== undefined) user.role = role;
-    if (active !== undefined) user.active = active;
+    // Chỉ cho phép hai vai trò hợp lệ, và không ai tự đổi vai trò/khóa chính tài khoản của mình
+    const isSelf = req.user && req.user._id.toString() === id;
+    if (role !== undefined) {
+      if (!['admin', 'teacher'].includes(role)) {
+        return res.status(400).json({ success: false, message: 'Vai trò không hợp lệ.' });
+      }
+      if (isSelf && role !== user.role) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bạn không thể tự thay đổi vai trò của chính mình.',
+        });
+      }
+      user.role = role;
+    }
+    if (active !== undefined) {
+      if (isSelf && active === false) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bạn không thể tự khóa tài khoản của chính mình.',
+        });
+      }
+      user.active = active;
+    }
     if (assignedClasses !== undefined) user.assignedClasses = assignedClasses;
 
     await user.save();

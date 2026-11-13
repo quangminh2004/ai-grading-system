@@ -6,6 +6,10 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { connectDB } from './config/db.js';
 import { ensureRootAdmin } from './config/initRootAdmin.js';
+import { requireAuth } from './middleware/auth.js';
+import { Class } from './models/Class.js';
+import { Submission } from './models/Submission.js';
+import { canAccessClass } from './middleware/auth.js';
 import apiRouter from './routes/api.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,7 +24,29 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middlewares
-app.use(cors({ origin: '*' }));
+// CORS: mặc định cho phép same-origin và dev nội bộ; trong production cấu hình thêm qua CORS_ORIGINS
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+const devOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5000',
+  'http://127.0.0.1:5000',
+];
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (devOrigins.includes(origin) || allowedOrigins.includes(origin)) {
+      return cb(null, true);
+    }
+    if (process.env.NODE_ENV !== 'production' && origin.startsWith('http://localhost:')) {
+      return cb(null, true);
+    }
+    return cb(null, false);
+  },
+}));
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
@@ -32,8 +58,36 @@ if (!fs.existsSync(uploadsDir)) {
 }
 app.use('/samples', express.static(samplesDir));
 app.use('/samples', express.static(path.resolve('samples')));
-app.use('/uploads', express.static(uploadsDir));
-app.use('/uploads', express.static(path.resolve('uploads')));
+
+// Ảnh bài làm của học sinh là dữ liệu nhạy cảm: chỉ phục vụ khi người dùng đã đăng nhập
+// VÀ có quyền với lớp chứa bài nộp đó. Token truyền qua ?token= vì thẻ <img> không gửi được header.
+app.get('/uploads/:filename', requireAuth, async (req, res) => {
+  try {
+    const filename = path.basename(req.params.filename);
+    const sub = await Submission.findOne({
+      'attachments.filePath': { $regex: `${filename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$` },
+    }).lean();
+
+    if (sub) {
+      const classroom = await Class.findOne({ classId: sub.classId }).lean();
+      if (!canAccessClass(req.user, classroom)) {
+        return res.status(403).json({ success: false, message: 'Bạn không có quyền xem tệp này.' });
+      }
+    } else if (req.user.role !== 'admin') {
+      // Tệp không thuộc bài nộp nào: chỉ Admin được xem (tránh lộ file mồ côi)
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tệp.' });
+    }
+
+    const candidateDirs = [uploadsDir, path.resolve('uploads'), path.resolve('backend/uploads')];
+    const fileDir = candidateDirs.find((dir) => fs.existsSync(path.join(dir, filename)));
+    if (!fileDir) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tệp.' });
+    }
+    res.sendFile(path.join(fileDir, filename));
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Không thể tải tệp.' });
+  }
+});
 
 // Routes
 app.use('/api', apiRouter);
@@ -90,7 +144,6 @@ const startServer = async () => {
       console.log(`🌐 Web App & API: http://0.0.0.0:${PORT}`);
       console.log(`📡 Cơ sở dữ liệu: Đã kết nối trực tuyến`);
       console.log(`🔗 API Endpoint: http://localhost:${PORT}/api`);
-      console.log(`👑 Đăng nhập Admin: admin / admin@123`);
       console.log(`====================================================`);
     });
 

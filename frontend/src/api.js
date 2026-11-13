@@ -12,17 +12,22 @@ const getApiBase = () => {
 
 const API_BASE = getApiBase();
 
+const getToken = () => localStorage.getItem('tl_auth_token');
+
 export const getFileUrl = (filePath, sampleUrl) => {
   if (sampleUrl) return sampleUrl;
   if (!filePath) return '';
   if (filePath.startsWith('http://') || filePath.startsWith('https://')) return filePath;
-  if (typeof window !== 'undefined' && window.location.port === '5173') {
-    return `http://localhost:5000${filePath}`;
+  const base = (typeof window !== 'undefined' && window.location.port === '5173')
+    ? `http://localhost:5000${filePath}`
+    : filePath;
+  const token = getToken();
+  if (token && filePath.startsWith('/uploads/')) {
+    const separator = base.includes('?') ? '&' : '?';
+    return `${base}${separator}token=${encodeURIComponent(token)}`;
   }
-  return filePath;
+  return base;
 };
-
-const getToken = () => localStorage.getItem('tl_auth_token');
 
 const authHeaders = (isJson = true) => {
   const headers = {};

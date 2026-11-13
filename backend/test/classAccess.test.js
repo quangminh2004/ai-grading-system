@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { canAccessClass } from '../src/middleware/auth.js';
+import { canAccessClass, canManageClass } from '../src/middleware/auth.js';
 
 const cls = { classId: '4A', school: 'Trường A', teacherUsername: 'cothu' };
 
@@ -40,5 +40,28 @@ describe('canAccessClass', () => {
     assert.equal(canAccessClass(null, cls), false);
     assert.equal(canAccessClass({ role: 'student', username: 'cothu', school: 'Trường A' }, cls), false);
     assert.equal(canAccessClass({ role: 'admin' }, null), false);
+  });
+});
+
+describe('canManageClass', () => {
+  test('admin có quyền quản lý mọi lớp (xóa lớp, sửa tiêu chí)', () => {
+    assert.equal(canManageClass({ role: 'admin', username: 'admin' }, cls), true);
+  });
+
+  test('giáo viên phụ trách lớp (teacherUsername) có quyền quản lý', () => {
+    assert.equal(canManageClass({ role: 'teacher', username: 'cothu' }, cls), true);
+  });
+
+  test('giáo viên cùng trường nhưng không phụ trách lớp → KHÔNG có quyền quản lý', () => {
+    assert.equal(canManageClass({ role: 'teacher', username: 'colan', school: 'Trường A' }, cls), false);
+  });
+
+  test('giáo viên được phân công nhưng không phải chủ nhiệm → KHÔNG có quyền quản lý', () => {
+    assert.equal(canManageClass({ role: 'teacher', username: 'x', assignedClasses: ['4A'] }, cls), false);
+  });
+
+  test('người dùng null hoặc lớp null → bị chặn', () => {
+    assert.equal(canManageClass(null, cls), false);
+    assert.equal(canManageClass({ role: 'teacher', username: 'cothu' }, null), false);
   });
 });

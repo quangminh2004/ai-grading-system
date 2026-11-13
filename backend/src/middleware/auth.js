@@ -2,20 +2,35 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
 import { Class } from '../models/Class.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'thanh_lan_ai_grading_jwt_secret_key_2026_super_secure';
+// Không dùng secret mặc định: nếu thiếu JWT_SECRET thì không ký/xác thực được token nào (ngoại trừ khi chạy test)
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'test' ? 'thanh_lan_test_jwt_secret_2026' : undefined);
+if (!JWT_SECRET) {
+  console.error('❌ Thiếu biến môi trường JWT_SECRET. Hệ thống từ chối xác thực cho đến khi được cấu hình.');
+}
 
 // Middleware xác thực token đăng nhập
 export const requireAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const queryToken = typeof req.query?.token === 'string' ? req.query.token : '';
+    const rawToken = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.split(' ')[1]
+      : queryToken;
+    if (!rawToken) {
       return res.status(401).json({
         success: false,
         message: 'Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.',
       });
     }
 
-    const token = authHeader.split(' ')[1];
+    if (!JWT_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: 'Máy chủ chưa được cấu hình khóa bảo mật (JWT_SECRET).',
+      });
+    }
+
+    const token = rawToken;
     const decoded = jwt.verify(token, JWT_SECRET);
 
     const user = await User.findById(decoded.id);
@@ -75,6 +90,14 @@ export const canAccessClass = (user, classroom) => {
   return false;
 };
 
+// Giáo viên chỉ được sửa/xóa lớp do chính mình phụ trách; Admin được mọi lớp.
+// Xem dữ liệu lớp thì dùng canAccessClass (kể cả lớp được phân công).
+export const canManageClass = (user, classroom) => {
+  if (!user || !classroom) return false;
+  if (user.role === 'admin') return true;
+  return Boolean(classroom.teacherUsername) && classroom.teacherUsername === user.username;
+};
+
 // Middleware kiểm tra quyền truy cập lớp theo req.params.classId (dùng SAU requireAuth)
 export const requireClassAccess = async (req, res, next) => {
   try {
@@ -96,12 +119,26 @@ export const requireClassAccess = async (req, res, next) => {
   }
 };
 
+// Chặn thao tác phá hủy/sửa cấu hình lớp nếu người dùng chỉ được phân công, không phải chủ lớp
+export const requireClassManage = (req, res, next) => {
+  if (!canManageClass(req.user, req.classroom)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Chỉ giáo viên phụ trách lớp hoặc Admin mới được thực hiện thao tác này.',
+    });
+  }
+  next();
+};
+
 // Middleware tùy chọn (nếu có token thì gán req.user, không có thì vẫn cho qua)
 export const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
+    const queryToken = typeof req.query?.token === 'string' ? req.query.token : '';
+    const token = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.split(' ')[1]
+      : queryToken;
+    if (token && JWT_SECRET) {
       const decoded = jwt.verify(token, JWT_SECRET);
       const user = await User.findById(decoded.id);
       if (user && user.active) {

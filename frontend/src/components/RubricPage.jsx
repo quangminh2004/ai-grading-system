@@ -30,9 +30,14 @@ const pillStyle = {
   border: '1px solid #c9dec1',
 };
 
-export default function RubricPage({ classroom, onRubricSaved, showToast }) {
+export default function RubricPage({ classroom, currentUser, onRubricSaved, showToast }) {
   const rubric = getRubric(classroom?.rubric);
   const totalMax = rubric.reduce((s, r) => s + Number(r.max), 0);
+
+  const canManage =
+    currentUser?.role === 'admin' ||
+    !classroom?.teacherUsername ||
+    classroom.teacherUsername === currentUser?.username;
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState([]);
@@ -137,7 +142,23 @@ export default function RubricPage({ classroom, onRubricSaved, showToast }) {
           </p>
         </div>
         <div className="actions">
-          {!editing ? (
+          {!canManage ? (
+            <span
+              style={{
+                fontSize: '13px',
+                color: '#687560',
+                background: '#f2f6ef',
+                border: '1px solid #d8e3d3',
+                padding: '6px 14px',
+                borderRadius: '6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              🔒 Chỉ GV phụ trách ({classroom?.teacherUsername || 'chủ lớp'}) mới được sửa tiêu chí
+            </span>
+          ) : !editing ? (
             <>
               <button className="btn primary" onClick={startEdit} disabled={!classroom}>
                 ✎ Chỉnh sửa tiêu chí

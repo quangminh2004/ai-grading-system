@@ -58,6 +58,15 @@ export const reviewSubmission = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy bài nộp' });
     }
 
+    // Chỉ cho phép giáo viên chuyển bài sang "đã duyệt" hoặc giữ nguyên trạng thái hiện tại.
+    // Không cho ghi đè state thành giá trị tùy ý (ví dụ 'failed', 'processing').
+    if (state !== undefined && state !== 'approved' && state !== sub.state) {
+      return res.status(400).json({
+        success: false,
+        message: 'Trạng thái bài nộp không hợp lệ. Giáo viên chỉ có thể duyệt bài.',
+      });
+    }
+
     // Kiểm tra điểm giáo viên nhập theo đúng bộ tiêu chí của bài (hoặc bộ tiêu chí hiện tại của lớp)
     let normalizedTeacherScores;
     if (Array.isArray(teacherScores)) {
@@ -77,13 +86,25 @@ export const reviewSubmission = async (req, res) => {
       sub.rubric = targetRubric;
     }
 
-    if (state !== undefined) sub.state = state;
+    if (state === 'approved') sub.state = 'approved';
     if (normalizedTeacherScores !== undefined) sub.teacherScores = normalizedTeacherScores;
     else if (teacherScores === null) sub.teacherScores = null;
     if (teacherFeedback !== undefined) sub.teacherFeedback = teacherFeedback;
     if (reason !== undefined) sub.reason = reason;
-    if (text !== undefined) sub.text = text;
-    if (scores !== undefined) sub.scores = scores;
+    if (text !== undefined) sub.text = String(text).slice(0, 20000);
+    // Điểm AI (scores) chỉ do pipeline chấm sinh ra, giáo viên chấm qua teacherScores
+    if (scores !== undefined) {
+      const classRubric = getEffectiveRubric(req.classroom);
+      const subRubric = getSubmissionRubric(sub, classRubric);
+      const normalizedAiScores = normalizeScores(scores, subRubric);
+      if (!normalizedAiScores) {
+        return res.status(400).json({
+          success: false,
+          message: 'Số điểm không khớp với số tiêu chí đánh giá. Vui lòng tải lại trang và chấm lại.',
+        });
+      }
+      sub.scores = normalizedAiScores;
+    }
     if (explain !== undefined) sub.explain = explain;
     if (errors !== undefined) sub.errors = errors;
     if (strength !== undefined) sub.strength = strength;

@@ -46,7 +46,7 @@ import {
   deleteSchool,
   getSchoolsSummary,
 } from '../controllers/schoolController.js';
-import { requireAuth, requireAdmin, requireClassAccess } from '../middleware/auth.js';
+import { requireAuth, requireAdmin, requireClassAccess, requireClassManage } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -72,14 +72,21 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB max
+  limits: { fileSize: 25 * 1024 * 1024, files: 20 }, // 25MB/tệp, tối đa 20 tệp/lần
+  fileFilter: (req, file, cb) => {
+    const allowed = /^(image\/(jpeg|png|webp|gif)|application\/pdf)$/;
+    if (!allowed.test(file.mimetype)) {
+      return cb(new Error('Chỉ chấp nhận tệp ảnh (JPG, PNG, WEBP) hoặc PDF.'));
+    }
+    cb(null, true);
+  },
 });
 
 // ==================== AUTH & SCHOOLS ROUTES ====================
 router.post('/auth/login', login);
 router.get('/auth/me', requireAuth, getMe);
 router.post('/auth/change-password', requireAuth, changePassword);
-router.get('/schools', getSchoolsList);
+router.get('/schools', requireAuth, getSchoolsList);
 router.post('/schools', requireAuth, requireAdmin, createSchool);
 router.put('/schools/:id', requireAuth, requireAdmin, updateSchool);
 router.delete('/schools/:id', requireAuth, requireAdmin, deleteSchool);
@@ -97,14 +104,16 @@ router.get('/admin/schools-summary', requireAuth, requireAdmin, getSchoolsSummar
 // Tất cả route lớp học bắt buộc đăng nhập; route có :classId còn kiểm tra quyền với lớp đó
 // (requireAuth/requireClassAccess đặt TRƯỚC multer để không ghi tệp khi chưa xác thực)
 const classAccess = [requireAuth, requireClassAccess];
+// Xóa lớp / đổi bộ tiêu chí: chỉ giáo viên phụ trách lớp hoặc Admin
+const classManage = [...classAccess, requireClassManage];
 
 router.get('/classes', requireAuth, getClasses);
 router.post('/classes', requireAuth, createClass);
-router.delete('/classes/:classId', ...classAccess, deleteClass);
+router.delete('/classes/:classId', ...classManage, deleteClass);
 router.get('/classes/:classId/full', ...classAccess, getClassDetails);
 router.post('/classes/:classId/students', ...classAccess, addStudent);
 router.post('/classes/:classId/roster', ...classAccess, importRoster);
-router.put('/classes/:classId/rubric', ...classAccess, updateClassRubric);
+router.put('/classes/:classId/rubric', ...classManage, updateClassRubric);
 
 // ==================== TIÊU CHÍ & BÀI TẬP ====================
 router.get('/assignment', requireAuth, getAssignment);
@@ -149,5 +158,12 @@ router.post('/classes/:classId/submissions/:studentId/retry', ...classAccess, re
 // Xóa bài nộp (Wildcard /:submissionId) - PHẢI ĐẶT SAU CÙNG để không nuốt route /attachments
 router.delete('/classes/:classId/submissions/:studentId/:submissionId', ...classAccess, deleteSubmission);
 router.delete('/classes/:classId/submissions/:submissionId', ...classAccess, deleteSubmission);
+
+router.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError || (err && /Chỉ chấp nhận tệp/.test(err.message))) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+  next(err);
+});
 
 export default router;
