@@ -1347,7 +1347,7 @@ dialog::backdrop {
 
 #toast {
   position: fixed;
-  bottom: 25px;
+  bottom: 28px;
   left: calc(50% + 90px);
   transform: translateX(-50%);
   background: #294f3c;
@@ -1357,9 +1357,14 @@ dialog::backdrop {
   border-radius: 8px;
   box-shadow: 0 10px 35px #294f3c25;
   box-shadow: 0 10px 35px #E8521A25;
-  font-size: 11px;
-  z-index: 99;
+  font-size: 13px;
+  line-height: 1.4;
+  max-width: min(520px, calc(100vw - 32px));
+  text-align: center;
+  /* Phải cao hơn .modal-backdrop (99999) để không bị modal che */
+  z-index: 1000001;
   display: none;
+  pointer-events: none;
 }
 
 
@@ -2676,6 +2681,16 @@ dialog::backdrop {
   gap: 14px;
 }
 
+.modal-form-error {
+  background: #fef2f0;
+  border: 1px solid #f0b4a4;
+  color: #9a3412;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .form-row {
   display: flex;
   gap: 12px;
@@ -2693,6 +2708,12 @@ dialog::backdrop {
   border-radius: 8px;
   font-size: 13px;
   background: #ffffff;
+}
+
+.modal-form input[readonly] {
+  background: #f3f5f3;
+  color: var(--muted);
+  cursor: default;
 }
 
 .modal-form input:focus,

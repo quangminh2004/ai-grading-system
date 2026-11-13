@@ -44,6 +44,8 @@ export default function App() {
   const [newClassLabel, setNewClassLabel] = useState('');
   const [newClassId, setNewClassId] = useState('');
   const [newClassSchool, setNewClassSchool] = useState('');
+  const [newClassError, setNewClassError] = useState('');
+  const [creatingClass, setCreatingClass] = useState(false);
 
   // Modal đổi mật khẩu
   const [changePwdModal, setChangePwdModal] = useState(false);
@@ -263,6 +265,8 @@ export default function App() {
   const handleCreateNewClass = async (e) => {
     e.preventDefault();
     if (!newClassId.trim() || !newClassLabel.trim()) return;
+    setNewClassError('');
+    setCreatingClass(true);
     try {
       const res = await api.createClass({
         classId: newClassId.trim(),
@@ -275,13 +279,20 @@ export default function App() {
         setNewClassId('');
         setNewClassLabel('');
         setNewClassSchool('');
+        setNewClassError('');
         await loadClasses();
         setCurrentClassId(res.class.classId);
       } else {
-        showToast(res.message);
+        // Hiện lỗi trong modal (toast dễ bị che / cắt dưới đáy màn hình)
+        setNewClassError(res.message || 'Không tạo được lớp học.');
+        showToast(res.message || 'Không tạo được lớp học.');
       }
     } catch (err) {
-      showToast('Lỗi tạo lớp: ' + err.message);
+      const msg = 'Lỗi tạo lớp: ' + err.message;
+      setNewClassError(msg);
+      showToast(msg);
+    } finally {
+      setCreatingClass(false);
     }
   };
 
@@ -323,13 +334,6 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      {/* Toast thông báo */}
-      {toastMessage && (
-        <div id="toast" style={{ display: 'block' }}>
-          {toastMessage}
-        </div>
-      )}
-
       {/* Sidebar điều hướng (phân quyền nghiêm ngặt Admin vs Giáo viên) */}
       <Sidebar
         page={page}
@@ -348,6 +352,7 @@ export default function App() {
           onSelectClass={setCurrentClassId}
           onNewClassClick={() => {
             setNewClassSchool(currentUser?.school || '');
+            setNewClassError('');
             setNewClassModal(true);
           }}
           currentUser={currentUser}
@@ -386,6 +391,7 @@ export default function App() {
                     onSelectStudent={setSelectedStudentId}
                     onNewClassClick={() => {
                       setNewClassSchool(currentUser?.school || '');
+                      setNewClassError('');
                       setNewClassModal(true);
                     }}
                   />
@@ -453,11 +459,17 @@ export default function App() {
 
       {/* Modal Thêm Lớp Mới (Giáo viên) */}
       {!isAdmin && newClassModal && (
-        <div className="modal-backdrop" onClick={() => setNewClassModal(false)}>
+        <div className="modal-backdrop" onClick={() => !creatingClass && setNewClassModal(false)}>
           <div className="modal-card small" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Tạo lớp học mới</h3>
-              <button className="modal-close-btn" onClick={() => setNewClassModal(false)}>✕</button>
+              <button
+                className="modal-close-btn"
+                onClick={() => !creatingClass && setNewClassModal(false)}
+                disabled={creatingClass}
+              >
+                ✕
+              </button>
             </div>
             <form onSubmit={handleCreateNewClass} className="modal-form">
               <div className="form-group">
@@ -465,9 +477,10 @@ export default function App() {
                 <input
                   type="text"
                   required
+                  readOnly
                   placeholder="Ví dụ: Trường Tiểu học Thanh Lân"
                   value={newClassSchool}
-                  onChange={(e) => setNewClassSchool(e.target.value)}
+                  title="Trường gắn với tài khoản giáo viên"
                 />
               </div>
 
@@ -478,7 +491,10 @@ export default function App() {
                   required
                   placeholder="Ví dụ: 4C"
                   value={newClassId}
-                  onChange={(e) => setNewClassId(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+                  onChange={(e) => {
+                    setNewClassError('');
+                    setNewClassId(e.target.value.toUpperCase().replace(/\s+/g, ''));
+                  }}
                 />
               </div>
 
@@ -489,20 +505,30 @@ export default function App() {
                   required
                   placeholder="Ví dụ: Lớp 4C"
                   value={newClassLabel}
-                  onChange={(e) => setNewClassLabel(e.target.value)}
+                  onChange={(e) => {
+                    setNewClassError('');
+                    setNewClassLabel(e.target.value);
+                  }}
                 />
               </div>
+
+              {newClassError && (
+                <div className="modal-form-error" role="alert">
+                  {newClassError}
+                </div>
+              )}
 
               <div className="modal-footer">
                 <button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setNewClassModal(false)}
+                  disabled={creatingClass}
                 >
                   Hủy
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Tạo lớp học
+                <button type="submit" className="btn btn-primary" disabled={creatingClass}>
+                  {creatingClass ? 'Đang tạo…' : 'Tạo lớp học'}
                 </button>
               </div>
             </form>
@@ -560,6 +586,13 @@ export default function App() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Toast đặt sau modal + z-index cao hơn backdrop để không bị che */}
+      {toastMessage && (
+        <div id="toast" style={{ display: 'block' }}>
+          {toastMessage}
         </div>
       )}
     </div>

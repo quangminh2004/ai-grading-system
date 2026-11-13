@@ -5,6 +5,60 @@ import { Assignment } from '../models/Assignment.js';
 import { isValidVietnameseText } from '../services/aiGradingService.js';
 import { getEffectiveRubric, getSubmissionRubric, validateRubric } from '../config/rubric.js';
 
+/** Bỏ dấu tiếng Việt, lấy slug ngắn từ tên trường (vd: "Trường Tiểu học Yên Nghĩa" → "YENNGHIA"). */
+export function toSchoolSlug(schoolName) {
+  const raw = String(schoolName || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/gi, 'd')
+    .toUpperCase();
+  const withoutPrefix = raw
+    .replace(/^TRUONG\s+TIEU\s+HOC\s+/i, '')
+    .replace(/^TRUONG\s+/i, '')
+    .replace(/[^A-Z0-9]+/g, '');
+  return (withoutPrefix || 'TRUONG').slice(0, 12);
+}
+
+function sameSchool(a, b) {
+  return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+}
+
+/**
+ * classId phải unique toàn hệ thống (routing + học sinh), nhưng mỗi trường
+ * được dùng cùng mã ngắn (4A, 5B…). Nếu mã đã thuộc trường khác → gắn hậu tố trường.
+ */
+export async function resolveUniqueClassId(preferredId, schoolName) {
+  const slug = toSchoolSlug(schoolName);
+  const namespaced = `${preferredId}-${slug}`;
+  const dupMsg = `Mã lớp ${preferredId} đã tồn tại trong trường của bạn. Vui lòng chọn mã khác.`;
+
+  // Trùng trong cùng trường (kể cả mã đã gắn hậu tố kiểu 4A-YENNGHIA)
+  const schoolClasses = await Class.find({ school: schoolName }).select('classId').lean();
+  const alreadyInSchool = schoolClasses.some((c) => {
+    const id = String(c.classId || '').toUpperCase();
+    return id === preferredId || id === namespaced || id.startsWith(namespaced);
+  });
+  if (alreadyInSchool) {
+    return { error: dupMsg };
+  }
+
+  const taken = await Class.findOne({ classId: preferredId }).lean();
+  if (!taken) {
+    return { classId: preferredId };
+  }
+  if (sameSchool(taken.school, schoolName)) {
+    return { error: dupMsg };
+  }
+
+  // Trường khác đã dùng mã này → tạo mã hệ thống gắn slug trường
+  let finalId = namespaced;
+  let n = 2;
+  while (await Class.findOne({ classId: finalId }).lean()) {
+    finalId = `${namespaced}${n++}`;
+  }
+  return { classId: finalId, remapped: true, preferredId };
+}
+
 // GET /api/classes
 // Admin: xem tất cả (có thể lọc ?school=). Giáo viên: chỉ lớp thuộc trường mình, lớp mình tạo hoặc được phân công.
 export const getClasses = async (req, res) => {
@@ -38,19 +92,20 @@ export const createClass = async (req, res) => {
     if (!classId || !label) {
       return res.status(400).json({ success: false, message: 'Thiếu mã lớp hoặc tên lớp' });
     }
-    const cleanId = classId.trim().toUpperCase();
-    const existing = await Class.findOne({ classId: cleanId });
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'Mã lớp đã tồn tại' });
-    }
+    const preferredId = classId.trim().toUpperCase();
 
     // Giáo viên chỉ được tạo lớp trong trường của mình; Admin được chọn trường
     const schoolName = req.user.role === 'admin'
       ? (school || req.user.school || 'Trường Tiểu học Thanh Lân').trim()
       : (req.user.school || 'Trường Tiểu học Thanh Lân').trim();
 
+    const resolved = await resolveUniqueClassId(preferredId, schoolName);
+    if (resolved.error) {
+      return res.status(400).json({ success: false, message: resolved.error });
+    }
+
     const newClass = await Class.create({
-      classId: cleanId,
+      classId: resolved.classId,
       label: label.trim(),
       grade: grade || '4',
       school: schoolName,
@@ -59,6 +114,12 @@ export const createClass = async (req, res) => {
 
     res.status(201).json({ success: true, class: newClass });
   } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã lớp đã tồn tại. Vui lòng chọn mã khác.',
+      });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 };
