@@ -537,23 +537,22 @@ export default function GradingPage({
                   </div>
                   <div className="student-sub">
                     <span
-                      className={`status ${
-                        s.state === 'approved'
+                      className={`status ${s.state === 'approved'
                           ? 'approved'
                           : s.state === 'suggested' || hasScores
-                          ? 'suggested'
-                          : hasAttachments
-                          ? 'waiting'
-                          : 'new'
-                      }`}
+                            ? 'suggested'
+                            : hasAttachments
+                              ? 'waiting'
+                              : 'new'
+                        }`}
                     >
                       {s.state === 'approved'
                         ? 'Đã duyệt'
                         : s.state === 'suggested' || hasScores
-                        ? 'Chờ GV duyệt'
-                        : hasAttachments
-                        ? 'Chờ AI chấm'
-                        : 'Chưa có bài'}
+                          ? 'Chờ GV duyệt'
+                          : hasAttachments
+                            ? 'Chờ AI chấm'
+                            : 'Chưa có bài'}
                     </span>
                     {subCount > 1 && (
                       <span style={{ fontSize: '11px', color: '#2d5a22', background: '#eaf4e6', padding: '1px 7px', borderRadius: '10px', fontWeight: 'bold' }}>
@@ -599,24 +598,23 @@ export default function GradingPage({
                   <span>
                     Trạng thái:
                     <span
-                      className={`status ${
-                        displayData.state === 'approved'
+                      className={`status ${displayData.state === 'approved'
                           ? 'approved'
                           : displayData.state === 'suggested' || (displayData.teacherScores || displayData.scores)?.length > 0
-                          ? 'suggested'
-                          : displayData.attachments?.length > 0
-                          ? 'waiting'
-                          : 'new'
-                      }`}
+                            ? 'suggested'
+                            : displayData.attachments?.length > 0
+                              ? 'waiting'
+                              : 'new'
+                        }`}
                       style={{ marginLeft: '6px' }}
                     >
                       {displayData.state === 'approved'
                         ? 'Đã duyệt'
                         : displayData.state === 'suggested' || (displayData.teacherScores || displayData.scores)?.length > 0
-                        ? 'Chờ GV duyệt'
-                        : displayData.attachments?.length > 0
-                        ? 'Chờ GV chấm'
-                        : 'Chưa có bài'}
+                          ? 'Chờ GV duyệt'
+                          : displayData.attachments?.length > 0
+                            ? 'Chờ GV chấm'
+                            : 'Chưa có bài'}
                     </span>
                   </span>
                   <span>•</span>
@@ -889,7 +887,7 @@ export default function GradingPage({
                     </div>
                   ) : currentScores.length > 0 ? (
                     <div style={{ color: '#8d6313', fontStyle: 'italic', fontSize: '13px' }}>
-                      Cần giáo viên kiểm tra và bấm duyệt
+                      AI chấm chỉ mang tính chất tham khảo. Cần giáo viên kiểm tra và bấm duyệt
                     </div>
                   ) : displayData.attachments?.length > 0 ? (
                     <div style={{ color: '#44643b', fontSize: '13px', fontWeight: '550' }}>
@@ -952,8 +950,8 @@ export default function GradingPage({
                           const displayName = isImg && imgIdx >= 0
                             ? `Trang ảnh ${imgIdx + 1}${isCropped ? ' (Đã cắt/xoay)' : ''}`
                             : (att.name && att.name.length > 25
-                                ? att.name.slice(0, 16) + '...' + att.name.slice(att.name.lastIndexOf('.'))
-                                : (att.name || `Tệp ${idx + 1}`));
+                              ? att.name.slice(0, 16) + '...' + att.name.slice(att.name.lastIndexOf('.'))
+                              : (att.name || `Tệp ${idx + 1}`));
 
                           return (
                             <div
