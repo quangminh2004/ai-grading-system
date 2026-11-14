@@ -61,8 +61,13 @@ export async function resolveUniqueClassId(preferredId, schoolName) {
 
 // GET /api/classes
 // Admin: xem tất cả (có thể lọc ?school=). Giáo viên: chỉ lớp thuộc trường mình, lớp mình tạo hoặc được phân công.
+// Phụ huynh: không liệt kê lớp (tránh lộ danh sách lớp theo school).
 export const getClasses = async (req, res) => {
   try {
+    if (req.user.role === 'parent') {
+      return res.json({ success: true, classes: [] });
+    }
+
     const { school } = req.query;
     let filter = {};
 
@@ -88,6 +93,12 @@ export const getClasses = async (req, res) => {
 // POST /api/classes
 export const createClass = async (req, res) => {
   try {
+    if (req.user.role === 'parent') {
+      return res.status(403).json({
+        success: false,
+        message: 'Phụ huynh không được tạo lớp học.',
+      });
+    }
     const { classId, label, grade, school } = req.body;
     if (!classId || !label) {
       return res.status(400).json({ success: false, message: 'Thiếu mã lớp hoặc tên lớp' });

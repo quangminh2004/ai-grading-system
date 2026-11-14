@@ -8,12 +8,13 @@ export default function Sidebar({
   onLogout,
 }) {
   const isAdmin = currentUser?.role === 'admin';
-  const schoolShort = currentUser?.school
-    ? currentUser.school.toUpperCase()
-    : 'HỆ THỐNG TRỢ LÝ CHẤM & CHỮA';
+  const isParent = currentUser?.role === 'parent';
+  const isTeacher = currentUser?.role === 'teacher';
 
   const avatarLetters = isAdmin
     ? 'AD'
+    : isParent
+    ? 'PH'
     : (currentUser?.fullName || 'GV')
       .split(' ')
       .filter(Boolean)
@@ -21,6 +22,18 @@ export default function Sidebar({
       .map((w) => w[0])
       .join('')
       .toUpperCase();
+
+  const roleLabel = isAdmin ? 'Quản trị viên' : isParent ? 'Phụ huynh' : 'Giáo viên';
+  const workspaceTitle = isAdmin
+    ? 'Quản trị viên Hệ thống'
+    : isParent
+    ? (currentUser?.fullName || 'Phụ huynh')
+    : (currentUser?.fullName || 'Giáo viên');
+  const workspaceSub = isAdmin
+    ? 'Trung tâm Quản trị Admin'
+    : isParent
+    ? 'Cổng phụ huynh'
+    : 'Giáo viên';
 
   return (
     <aside className="sidebar">
@@ -30,7 +43,9 @@ export default function Sidebar({
         href="#"
         onClick={(e) => {
           e.preventDefault();
-          setPage(isAdmin ? 'admin_users' : 'overview');
+          if (isAdmin) setPage('admin_users');
+          else if (isParent) setPage('parent_home');
+          else setPage('overview');
         }}
       >
         <span className="brand-icon">
@@ -49,10 +64,8 @@ export default function Sidebar({
       <div className="workspace">
         <span className={`avatar ${isAdmin ? 'peach' : ''}`}>{avatarLetters}</span>
         <div>
-          {isAdmin ? 'Quản trị viên Hệ thống' : (currentUser?.fullName || 'Giáo viên')}
-          <small>
-            {isAdmin ? 'Trung tâm Quản trị Admin' : 'Giáo viên'}
-          </small>
+          {workspaceTitle}
+          <small>{workspaceSub}</small>
         </div>
       </div>
 
@@ -86,9 +99,26 @@ export default function Sidebar({
       )}
 
       {/* ========================================================
+          MENU DÀNH RIÊNG CHO PHỤ HUYNH
+          ======================================================== */}
+      {isParent && (
+        <>
+          <p className="navlabel">CỔNG PHỤ HUYNH</p>
+          <nav>
+            <button
+              className={page === 'parent_home' ? 'active' : ''}
+              onClick={() => setPage('parent_home')}
+            >
+              <span>◉</span>Con của tôi
+            </button>
+          </nav>
+        </>
+      )}
+
+      {/* ========================================================
           MENU DÀNH RIÊNG CHO GIÁO VIÊN (TEACHER)
           ======================================================== */}
-      {!isAdmin && (
+      {isTeacher && (
         <>
           <p className="navlabel">KHÔNG GIAN GIÁO VIÊN</p>
           <nav>
@@ -140,7 +170,7 @@ export default function Sidebar({
             {currentUser?.fullName || 'Người dùng'}
           </div>
           <small style={{ color: 'var(--muted)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {isAdmin ? 'Quản trị viên' : 'Giáo viên'}
+            {roleLabel}
           </small>
         </div>
         <button

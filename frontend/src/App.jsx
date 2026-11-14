@@ -17,6 +17,7 @@ import LoginPage from './components/LoginPage';
 import AdminUsersPage from './components/AdminUsersPage';
 import AdminSchoolsPage from './components/AdminSchoolsPage';
 import AdminStatsPage from './components/AdminStatsPage';
+import ParentGradesPage from './components/ParentGradesPage';
 
 export default function App() {
   // Trạng thái người dùng đã đăng nhập (lấy từ localStorage nếu có)
@@ -84,9 +85,13 @@ export default function App() {
       if (!['admin_users', 'admin_schools', 'admin_stats'].includes(page)) {
         setPage('admin_users');
       }
+    } else if (currentUser.role === 'parent') {
+      if (!['parent_home'].includes(page)) {
+        setPage('parent_home');
+      }
     } else {
       // Giáo viên chỉ được ở các trang lớp học
-      if (['admin_users', 'admin_schools', 'admin_stats'].includes(page)) {
+      if (['admin_users', 'admin_schools', 'admin_stats', 'parent_home'].includes(page)) {
         setPage('overview');
       }
       loadClasses();
@@ -94,7 +99,7 @@ export default function App() {
   }, [currentUser]);
 
   const loadClasses = async () => {
-    if (currentUser?.role === 'admin') return;
+    if (currentUser?.role === 'admin' || currentUser?.role === 'parent') return;
     try {
       const res = await api.getClasses(currentUser?.school);
       if (res.success && res.classes.length) {
@@ -116,7 +121,7 @@ export default function App() {
 
   // 3. Tải chi tiết lớp và học sinh mỗi khi đổi lớp (chỉ dành cho giáo viên)
   useEffect(() => {
-    if (!currentClassId || currentUser?.role === 'admin') return;
+    if (!currentClassId || currentUser?.role === 'admin' || currentUser?.role === 'parent') return;
     loadClassDetails(currentClassId);
   }, [currentClassId, currentUser]);
 
@@ -146,8 +151,12 @@ export default function App() {
     if (res.success) {
       setCurrentUser(res.user);
       showToast(`Xin chào, ${res.user.fullName}! Đăng nhập thành công.`);
-      setPage(res.user.role === 'admin' ? 'admin_users' : 'overview');
-      if (res.user.role === 'teacher') {
+      if (res.user.role === 'admin') {
+        setPage('admin_users');
+      } else if (res.user.role === 'parent') {
+        setPage('parent_home');
+      } else {
+        setPage('overview');
         await loadClasses();
       }
     }
@@ -331,10 +340,12 @@ export default function App() {
   }
 
   const isAdmin = currentUser.role === 'admin';
+  const isParent = currentUser.role === 'parent';
+  const isTeacher = currentUser.role === 'teacher';
 
   return (
     <div className="app-layout">
-      {/* Sidebar điều hướng (phân quyền nghiêm ngặt Admin vs Giáo viên) */}
+      {/* Sidebar điều hướng theo vai trò */}
       <Sidebar
         page={page}
         setPage={setPage}
@@ -362,7 +373,7 @@ export default function App() {
 
         <main id="main">
           {/* ==================== KHU VỰC QUẢN TRỊ ADMIN ==================== */}
-          {isAdmin ? (
+          {isAdmin && (
             <>
               {page === 'admin_users' && (
                 <AdminUsersPage showToast={showToast} currentAdmin={currentUser} />
@@ -374,8 +385,15 @@ export default function App() {
                 <AdminStatsPage showToast={showToast} />
               )}
             </>
-          ) : (
-            /* ==================== KHÔNG GIAN DÀNH CHO GIÁO VIÊN ==================== */
+          )}
+
+          {/* ==================== CỔNG PHỤ HUYNH ==================== */}
+          {isParent && page === 'parent_home' && (
+            <ParentGradesPage showToast={showToast} />
+          )}
+
+          {/* ==================== KHÔNG GIAN DÀNH CHO GIÁO VIÊN ==================== */}
+          {isTeacher && (
             loading ? (
               <div style={{ padding: '60px', textAlign: 'center', color: '#687560' }}>
                 <div style={{ fontSize: '28px', marginBottom: '10px' }}>⏳</div>
@@ -426,6 +444,8 @@ export default function App() {
                     students={students}
                     onAddStudent={handleAddStudent}
                     onImportRoster={handleImportRoster}
+                    showToast={showToast}
+                    currentUser={currentUser}
                   />
                 )}
 
@@ -448,7 +468,7 @@ export default function App() {
       </div>
 
       {/* Modal Chỉnh Sửa & Duyệt Điểm (Giáo viên) */}
-      {!isAdmin && editStudent && (
+      {isTeacher && editStudent && (
         <EditModal
           student={editStudent}
           classRubric={classroom?.rubric}
@@ -458,7 +478,7 @@ export default function App() {
       )}
 
       {/* Modal Thêm Lớp Mới (Giáo viên) */}
-      {!isAdmin && newClassModal && (
+      {isTeacher && newClassModal && (
         <div className="modal-backdrop" onClick={() => !creatingClass && setNewClassModal(false)}>
           <div className="modal-card small" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">

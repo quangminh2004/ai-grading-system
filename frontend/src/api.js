@@ -348,4 +348,55 @@ export const api = {
     });
     return res.json();
   },
+
+  // ==================== PHỤ HUYNH (GV quản lý theo lớp) ====================
+  listClassParents: async (classId) => {
+    const res = await fetch(`${API_BASE}/classes/${classId}/parents`, {
+      headers: authHeaders(),
+    });
+    return res.json();
+  },
+
+  createClassParent: async (classId, data) => {
+    const res = await fetch(`${API_BASE}/classes/${classId}/parents`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  updateClassParent: async (classId, userId, data) => {
+    const res = await fetch(`${API_BASE}/classes/${classId}/parents/${userId}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  resetClassParentPassword: async (classId, userId, newPassword) => {
+    const res = await fetch(`${API_BASE}/classes/${classId}/parents/${userId}/reset-password`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ newPassword }),
+    });
+    return res.json();
+  },
+
+  // ==================== CỔNG PHỤ HUYNH ====================
+  getMyChildren: async () => {
+    const res = await fetch(`${API_BASE}/parent/me/children`, {
+      headers: authHeaders(),
+    });
+    return res.json();
+  },
+
+  getChildGrades: async (classId, studentId) => {
+    const res = await fetch(
+      `${API_BASE}/parent/children/${encodeURIComponent(classId)}/${encodeURIComponent(studentId)}/grades`,
+      { headers: authHeaders() }
+    );
+    return res.json();
+  },
 };

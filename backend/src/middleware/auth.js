@@ -130,6 +130,43 @@ export const requireClassManage = (req, res, next) => {
   next();
 };
 
+// Phụ huynh chỉ được xem dữ liệu của đúng con đã gắn (không dùng canAccessClass)
+export const canAccessChild = (user, classId, studentId) => {
+  if (!user || user.role !== 'parent') return false;
+  if (!classId || !studentId) return false;
+  const cid = String(classId).trim();
+  const sid = String(studentId).trim().toUpperCase();
+  if (!Array.isArray(user.children) || !user.children.length) return false;
+  return user.children.some(
+    (c) =>
+      c &&
+      String(c.classId).trim() === cid &&
+      String(c.studentId).trim().toUpperCase() === sid
+  );
+};
+
+export const requireParent = (req, res, next) => {
+  if (!req.user || req.user.role !== 'parent') {
+    return res.status(403).json({
+      success: false,
+      message: 'Chỉ phụ huynh mới được thực hiện thao tác này.',
+    });
+  }
+  next();
+};
+
+// Middleware: phụ huynh chỉ truy cập đúng cặp classId + studentId trong req.params
+export const requireChildAccess = (req, res, next) => {
+  const { classId, studentId } = req.params;
+  if (!canAccessChild(req.user, classId, studentId)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Bạn không có quyền xem thông tin học sinh này.',
+    });
+  }
+  next();
+};
+
 // Middleware tùy chọn (nếu có token thì gán req.user, không có thì vẫn cho qua)
 export const optionalAuth = async (req, res, next) => {
   try {

@@ -10,6 +10,7 @@ const pageNames = {
   admin_users: 'Quản lý Giáo viên & Tài khoản',
   admin_schools: 'Danh mục Trường Học & Lớp Học',
   admin_stats: 'Báo cáo & Thống kê Toàn Hệ Thống',
+  parent_home: 'Điểm số của con',
 };
 
 export default function Header({
@@ -24,13 +25,22 @@ export default function Header({
 }) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const isAdmin = currentUser?.role === 'admin';
+  const isParent = currentUser?.role === 'parent';
+  const isTeacher = currentUser?.role === 'teacher';
+
+  const breadcrumb = isAdmin
+    ? 'Khu vực Quản trị'
+    : isParent
+    ? 'Cổng phụ huynh'
+    : 'Không gian Giáo viên';
+
+  const avatarLetters = isAdmin ? 'AD' : isParent ? 'PH' : 'GV';
+  const roleLabel = isAdmin ? 'Quản trị viên' : isParent ? 'Phụ huynh' : 'Giáo viên';
 
   return (
     <header className="main-header">
       <div className="head-left">
-        <span className="breadcrumb">
-          {isAdmin ? 'Khu vực Quản trị' : 'Không gian Giáo viên'}
-        </span>
+        <span className="breadcrumb">{breadcrumb}</span>
         <span className="slash">/</span>
         <span id="crumb" className="crumb-active">{pageNames[page] || 'Trang'}</span>
 
@@ -43,7 +53,7 @@ export default function Header({
 
       <div className="head-right">
         {/* Chỉ Giáo viên mới có bộ chọn lớp học & nút thêm lớp */}
-        {!isAdmin && classes.length > 0 && (
+        {isTeacher && classes.length > 0 && (
           <>
             <label className="class-picker" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               Lớp
@@ -79,13 +89,11 @@ export default function Header({
             title="Tùy chọn tài khoản"
           >
             <span className={`avatar small ${isAdmin ? 'peach' : ''}`}>
-              {isAdmin ? 'AD' : 'GV'}
+              {avatarLetters}
             </span>
             <div className="user-meta-header">
-              <span className="user-fullname">{currentUser?.fullName || 'Người dùng'}</span>
-              <span className="user-role-label">
-                {isAdmin ? 'Quản trị viên' : 'Giáo viên'}
-              </span>
+              <span className="user-name">{currentUser?.fullName || 'Người dùng'}</span>
+              <span className="user-role-label">{roleLabel}</span>
             </div>
             <span className="dropdown-arrow">▾</span>
           </button>

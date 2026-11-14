@@ -46,7 +46,22 @@ import {
   deleteSchool,
   getSchoolsSummary,
 } from '../controllers/schoolController.js';
-import { requireAuth, requireAdmin, requireClassAccess, requireClassManage } from '../middleware/auth.js';
+import {
+  createParentForClass,
+  listParentsForClass,
+  updateParentChildrenForClass,
+  resetParentPasswordForClass,
+  getMyChildren,
+  getChildGrades,
+} from '../controllers/parentController.js';
+import {
+  requireAuth,
+  requireAdmin,
+  requireClassAccess,
+  requireClassManage,
+  requireParent,
+  requireChildAccess,
+} from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -114,6 +129,26 @@ router.get('/classes/:classId/full', ...classAccess, getClassDetails);
 router.post('/classes/:classId/students', ...classAccess, addStudent);
 router.post('/classes/:classId/roster', ...classAccess, importRoster);
 router.put('/classes/:classId/rubric', ...classManage, updateClassRubric);
+
+// ==================== PHỤ HUYNH (GV quản lý theo lớp) ====================
+router.post('/classes/:classId/parents', ...classManage, createParentForClass);
+router.get('/classes/:classId/parents', ...classManage, listParentsForClass);
+router.put('/classes/:classId/parents/:userId', ...classManage, updateParentChildrenForClass);
+router.post(
+  '/classes/:classId/parents/:userId/reset-password',
+  ...classManage,
+  resetParentPasswordForClass
+);
+
+// ==================== CỔNG PHỤ HUYNH (chỉ xem điểm con) ====================
+router.get('/parent/me/children', requireAuth, requireParent, getMyChildren);
+router.get(
+  '/parent/children/:classId/:studentId/grades',
+  requireAuth,
+  requireParent,
+  requireChildAccess,
+  getChildGrades
+);
 
 // ==================== TIÊU CHÍ & BÀI TẬP ====================
 router.get('/assignment', requireAuth, getAssignment);

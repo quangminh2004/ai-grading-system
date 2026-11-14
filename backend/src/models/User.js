@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['admin', 'teacher'],
+      enum: ['admin', 'teacher', 'parent'],
       default: 'teacher',
       required: true,
     },
@@ -48,6 +48,17 @@ const userSchema = new mongoose.Schema(
     },
     assignedClasses: {
       type: [String],
+      default: [],
+    },
+    // Phụ huynh: danh sách con được gắn (classId + studentId)
+    children: {
+      type: [
+        {
+          classId: { type: String, required: true, trim: true },
+          studentId: { type: String, required: true, trim: true },
+          _id: false,
+        },
+      ],
       default: [],
     },
     createdBy: {
