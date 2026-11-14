@@ -140,7 +140,14 @@ export default function ParentGradesPage({ showToast }) {
               Chưa có bài nào được giáo viên duyệt điểm.
             </p>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
+              <colgroup>
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '34%' }} />
+                <col style={{ width: '32%' }} />
+                <col style={{ width: '12%' }} />
+              </colgroup>
               <thead>
                 <tr style={{ borderBottom: '2px solid #e3e8dc', color: '#66755e' }}>
                   <th style={{ padding: '12px' }}>Bài nộp</th>
@@ -169,13 +176,13 @@ export default function ParentGradesPage({ showToast }) {
                       <td style={{ padding: '12px' }}>
                         <ul style={{ margin: 0, paddingLeft: '18px' }}>
                           {(g.rubric || []).map((r, i) => (
-                            <li key={r.name + i}>
+                            <li key={r.name + i} style={{ whiteSpace: 'nowrap' }}>
                               {r.name}: {fmtScore(g.teacherScores?.[i] ?? 0)}/{fmtScore(r.max)}
                             </li>
                           ))}
                         </ul>
                       </td>
-                      <td style={{ padding: '12px', whiteSpace: 'pre-wrap' }}>
+                      <td style={{ padding: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '13px', lineHeight: 1.45 }}>
                         {g.teacherFeedback || '—'}
                       </td>
                       <td style={{ padding: '12px', color: '#7a8670', whiteSpace: 'nowrap' }}>
