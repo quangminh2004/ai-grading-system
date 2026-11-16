@@ -2513,6 +2513,11 @@ dialog::backdrop {
   color: #0369a1;
 }
 
+.role-badge.parent {
+  background: #ecfdf5;
+  color: #047857;
+}
+
 .school-name-text {
   font-size: 12px;
   color: var(--ink);

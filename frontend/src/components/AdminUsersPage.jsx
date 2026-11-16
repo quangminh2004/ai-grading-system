@@ -207,6 +207,12 @@ export default function AdminUsersPage({ showToast, currentAdmin }) {
     }
   };
 
+  const roleLabel = (role) => {
+    if (role === 'admin') return 'Quản trị viên';
+    if (role === 'parent') return 'Phụ huynh';
+    return 'Giáo viên';
+  };
+
   const filteredUsers = users.filter((u) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -344,7 +350,7 @@ export default function AdminUsersPage({ showToast, currentAdmin }) {
                     </td>
                     <td>
                       <span className={`role-badge ${u.role}`}>
-                        {u.role === 'admin' ? 'Quản trị viên' : 'Giáo viên'}
+                        {roleLabel(u.role)}
                       </span>
                     </td>
                     <td>
