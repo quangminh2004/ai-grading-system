@@ -14,26 +14,26 @@ export default function Sidebar({
   const avatarLetters = isAdmin
     ? 'AD'
     : isParent
-    ? 'PH'
-    : (currentUser?.fullName || 'GV')
-      .split(' ')
-      .filter(Boolean)
-      .slice(-2)
-      .map((w) => w[0])
-      .join('')
-      .toUpperCase();
+      ? 'PH'
+      : (currentUser?.fullName || 'GV')
+        .split(' ')
+        .filter(Boolean)
+        .slice(-2)
+        .map((w) => w[0])
+        .join('')
+        .toUpperCase();
 
   const roleLabel = isAdmin ? 'Quản trị viên' : isParent ? 'Phụ huynh' : 'Giáo viên';
   const workspaceTitle = isAdmin
     ? 'Quản trị viên Hệ thống'
     : isParent
-    ? (currentUser?.fullName || 'Phụ huynh')
-    : (currentUser?.fullName || 'Giáo viên');
+      ? (currentUser?.fullName || 'Phụ huynh')
+      : (currentUser?.fullName || 'Giáo viên');
   const workspaceSub = isAdmin
     ? 'Trung tâm Quản trị Admin'
     : isParent
-    ? 'Cổng phụ huynh'
-    : 'Giáo viên';
+      ? 'Cổng phụ huynh'
+      : 'Giáo viên';
 
   return (
     <aside className="sidebar">
@@ -80,7 +80,7 @@ export default function Sidebar({
               className={page === 'admin_users' ? 'active' : ''}
               onClick={() => setPage('admin_users')}
             >
-              <span>☷</span>Quản lý Giáo viên
+              <span>☷</span>Quản lý tài khoản
             </button>
             <button
               className={page === 'admin_schools' ? 'active' : ''}
