@@ -230,6 +230,10 @@ export default function App() {
 
   // Thêm học sinh (Giáo viên)
   const handleAddStudent = async (studentData) => {
+    if (!currentClassId) {
+      showToast('Chưa chọn lớp. Vui lòng tạo hoặc chọn lớp học trước.');
+      return;
+    }
     try {
       const res = await api.addStudent(currentClassId, studentData);
       if (res.success) {

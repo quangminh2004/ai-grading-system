@@ -60,6 +60,10 @@ export default function RosterPage({
 
   const handleAddSingle = async (e) => {
     e.preventDefault();
+    if (!classroom?.classId) {
+      showToast?.('Chưa có lớp học nào được chọn. Vui lòng tạo lớp trước.');
+      return;
+    }
     if (!singleName.trim()) return;
     await onAddStudent({ name: singleName, studentId: singleId });
     setSingleName('');
@@ -69,6 +73,10 @@ export default function RosterPage({
 
   const handleImportBulk = async (e) => {
     e.preventDefault();
+    if (!classroom?.classId) {
+      showToast?.('Chưa có lớp học nào được chọn. Vui lòng tạo lớp trước.');
+      return;
+    }
     if (!bulkText.trim()) return;
     await onImportRoster(bulkText);
     setBulkText('');
@@ -164,6 +172,7 @@ export default function RosterPage({
   };
 
   const studentNameById = Object.fromEntries(students.map((s) => [s.id, s.name]));
+  const noClass = !classroom?.classId;
 
   return (
     <div>
@@ -172,9 +181,11 @@ export default function RosterPage({
           <div className="eyebrow">
             TRỢ LÝ CHẤM CHỮA BÀI · DANH SÁCH LỚP HỌC
           </div>
-          <h1>Danh sách học sinh · {classroom?.label}</h1>
+          <h1>Danh sách học sinh {classroom?.label ? `· ${classroom.label}` : ''}</h1>
           <p className="sub">
-            Quản lý sĩ số lớp {classroom?.label}. Tổng cộng: {students.length} học sinh.
+            {noClass
+              ? 'Chưa có lớp học nào. Vui lòng tạo lớp mới ở góc trên bên phải (+ Thêm lớp).'
+              : `Quản lý sĩ số lớp ${classroom.label}. Tổng cộng: ${students.length} học sinh.`}
           </p>
         </div>
         <div className="actions">
@@ -187,12 +198,16 @@ export default function RosterPage({
           <button
             className={`btn ${tab === 'single' ? 'primary' : 'outline'}`}
             onClick={() => setTab('single')}
+            disabled={noClass}
+            title={noClass ? 'Vui lòng tạo lớp trước' : ''}
           >
             + Thêm 1 học sinh
           </button>
           <button
             className={`btn ${tab === 'bulk' ? 'primary' : 'outline'}`}
             onClick={() => setTab('bulk')}
+            disabled={noClass}
+            title={noClass ? 'Vui lòng tạo lớp trước' : ''}
           >
             Nhập hàng loạt
           </button>
